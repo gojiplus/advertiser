@@ -25,4 +25,6 @@ jobs:
           BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
           BSKY_PASSWORD: ${{ secrets.BSKY_PASSWORD }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_USERNAME: soodoku
+          GITHUB_ORGS: appeler,recite,gojiplus,themains,outside-edge,matmulai,in-rolls,notnews,geosensing
         run: python scripts/post_repo_to_bsky.py
