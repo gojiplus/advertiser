@@ -1,0 +1,32 @@
+name: "Post Repo to Bluesky"
+description: "Pick a random starred repo, summarize with GenAI, and post to Bluesky"
+author: "Your Name or Org"
+inputs:
+  bsky_handle:
+    description: "Bluesky handle (e.g. user.bsky.social)"
+    required: true
+  bsky_password:
+    description: "App password"
+    required: true
+  openai_api_key:
+    description: "OpenAI API key"
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+
+    - name: Install dependencies
+      run: pip install -r ${{ github.action_path }}/requirements.txt
+      shell: bash
+
+    - name: Run poster
+      env:
+        BSKY_HANDLE: ${{ inputs.bsky_handle }}
+        BSKY_PASSWORD: ${{ inputs.bsky_password }}
+        OPENAI_API_KEY: ${{ inputs.openai_api_key }}
+      run: python ${{ github.action_path }}/post_repo_to_bsky.py
+      shell: bash
