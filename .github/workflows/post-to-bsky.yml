@@ -3,7 +3,7 @@ name: Post Repo to Bsky
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 16 * * 1"  # Every Monday at 4 PM UTC
+    cron: "0 16 * * *"  # Every day at 4 PM UTC
 
 jobs:
   post:
