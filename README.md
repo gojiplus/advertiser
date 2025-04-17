@@ -1,8 +1,6 @@
-# 📬 Advertiser; Post a GenAI-Summarized GitHub Repo to Bluesky
+# 📬 Advertiser: Post a GenAI-Summarized GitHub Repo to Bluesky
 
-[![Test Workflow](https://github.com/YOUR_ORG/post-to-bsky/actions/workflows/test.yml/badge.svg)](https://github.com/YOUR_ORG/post-to-bsky/actions)
-
-This GitHub Action picks a GitHub repository (with at least 5 stars) from a curated list, summarizes it using OpenAI, and posts the summary to your Bluesky feed.
+This GitHub Action picks a GitHub repository (with at least five stars) from a curated list, summarizes it using OpenAI, and posts the summary to your Bluesky feed.
 
 Perfect for showcasing open-source gems to your followers — automatically or on demand.
 
