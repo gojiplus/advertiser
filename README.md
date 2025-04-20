@@ -1,4 +1,7 @@
-# 📬 Advertiser: Post a GenAI-Summarized GitHub Repo to Bluesky
+<img src="advertiser_logo.png" alt="Repo Logo" width="64" height="64" />
+# My Repo
+
+# Advertiser: Post a GenAI-Summarized GitHub Repo to Bluesky
 
 This GitHub Action picks a GitHub repository (with at least five stars) from a curated list, summarizes it using OpenAI, and posts the summary to your Bluesky feed.
 
