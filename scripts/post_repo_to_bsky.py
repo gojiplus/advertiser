@@ -9,7 +9,6 @@ GITHUB_API = "https://api.github.com"
 USERNAME   = os.environ["GITHUB_USERNAME"]
 ORGS       = os.environ.get("GITHUB_ORGS", "")
 TOKEN      = os.environ.get("GITHUB_PAT") or os.environ.get("GITHUB_TOKEN")
-
 HEADERS = {
     "Accept": "application/vnd.github+json",
     **({"Authorization": f"Bearer {TOKEN}"} if TOKEN else {})
@@ -22,16 +21,19 @@ def fetch_repos_for_user(user: str):
     return r.json()
 
 def choose_repo():
-    # get your user’s repos
+    # get your user's repos
     repos = fetch_repos_for_user(USERNAME)
-    # plus any orgs you’ve listed
+    
+    # plus any orgs you've listed
     for org in [o.strip() for o in ORGS.split(",") if o.strip()]:
         repos += fetch_repos_for_user(org)
-
-    # filter to >=5 stars
-    eligible = [r for r in repos if r.get("stargazers_count", 0) >= 5]
+    
+    # filter to >=5 stars and not archived
+    eligible = [r for r in repos if r.get("stargazers_count", 0) >= 5 and not r.get("archived", False)]
+    
     if not eligible:
-        raise RuntimeError("No repositories found with ≥5 stars.")
+        raise RuntimeError("No non-archived repositories found with ≥5 stars.")
+    
     return random.choice(eligible)
 
 def make_post_text(repo: dict):
@@ -47,15 +49,15 @@ def make_facets(post_text: str, url: str):
     char_start = post_text.find(url)
     if char_start < 0:
         raise ValueError(f"URL '{url}' not found in the post text")
-
+    
     # compute byte offsets
     prefix_bytes = post_text[:char_start].encode("utf-8")
     url_bytes    = url.encode("utf-8")
     byte_start   = len(prefix_bytes)
     byte_end     = byte_start + len(url_bytes)
-
+    
     print(f"→ link byteStart={byte_start}, byteEnd={byte_end}")
-
+    
     return [
         {
             "index": {"byteStart": byte_start, "byteEnd": byte_end},
@@ -79,4 +81,3 @@ if __name__ == "__main__":
     post_text, url = make_post_text(repo)
     facets = make_facets(post_text, url)
     post_to_bsky(post_text, facets)
-
