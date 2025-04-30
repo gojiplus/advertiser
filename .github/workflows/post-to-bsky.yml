@@ -21,5 +21,5 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_USERNAME: soodoku
           GITHUB_ORGS: appeler,recite,gojiplus,themains,outside-edge,matmulai,in-rolls,notnews,geosensing
-          GITHUB_STAR_CUTOFF: "5"  # Set your desired star cutoff here
+          GITHUB_STAR_CUTOFF: "1"  # Set your desired star cutoff here
         run: python scripts/post_repo_to_bsky.py
