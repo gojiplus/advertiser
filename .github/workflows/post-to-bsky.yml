@@ -1,25 +1,19 @@
-name: Post Repo to Bsky
-
 on:
   workflow_dispatch:
   schedule:
     - cron: "0 16 * * *"  # Every day at 4 PM UTC
-
 jobs:
   post:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-
       - name: Install deps
         run: |
           pip install -r requirements.txt
-
       - name: Post to Bsky
         env:
           BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
@@ -27,4 +21,5 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_USERNAME: soodoku
           GITHUB_ORGS: appeler,recite,gojiplus,themains,outside-edge,matmulai,in-rolls,notnews,geosensing
+          GITHUB_STAR_CUTOFF: "5"  # Set your desired star cutoff here
         run: python scripts/post_repo_to_bsky.py
