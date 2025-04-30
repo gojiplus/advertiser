@@ -9,6 +9,9 @@ GITHUB_API = "https://api.github.com"
 USERNAME   = os.environ["GITHUB_USERNAME"]
 ORGS       = os.environ.get("GITHUB_ORGS", "")
 TOKEN      = os.environ.get("GITHUB_PAT") or os.environ.get("GITHUB_TOKEN")
+# Get star cutoff from environment variable, default to 5 if not set
+STAR_CUTOFF = int(os.environ.get("GITHUB_STAR_CUTOFF", "5"))
+
 HEADERS = {
     "Accept": "application/vnd.github+json",
     **({"Authorization": f"Bearer {TOKEN}"} if TOKEN else {})
@@ -28,11 +31,11 @@ def choose_repo():
     for org in [o.strip() for o in ORGS.split(",") if o.strip()]:
         repos += fetch_repos_for_user(org)
     
-    # filter to >=5 stars and not archived
-    eligible = [r for r in repos if r.get("stargazers_count", 0) >= 5 and not r.get("archived", False)]
+    # filter based on star cutoff and not archived
+    eligible = [r for r in repos if r.get("stargazers_count", 0) >= STAR_CUTOFF and not r.get("archived", False)]
     
     if not eligible:
-        raise RuntimeError("No non-archived repositories found with ≥5 stars.")
+        raise RuntimeError(f"No non-archived repositories found with ≥{STAR_CUTOFF} stars.")
     
     return random.choice(eligible)
 
