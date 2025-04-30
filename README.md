@@ -1,4 +1,4 @@
-<img src="advertiser_logo.png" alt="Repo Logo" width="34" height="64" />
+<img src="advertiser_logo.png" alt="Repo Logo" width="40" height="40" />
 
 # Advertiser: Post a GenAI-Summarized GitHub Repo to Bluesky
 
