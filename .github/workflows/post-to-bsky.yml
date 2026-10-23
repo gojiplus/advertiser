@@ -58,6 +58,7 @@ jobs:
           BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
           BSKY_PASSWORD: ${{ secrets.BSKY_PASSWORD }}
           GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_STAR_CUTOFF: "1"
           DRY_RUN: ${{ inputs.dry_run }}
           POOL: ${{ inputs.pool || 'auto' }}
         run: |

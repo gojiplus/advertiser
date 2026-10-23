@@ -78,6 +78,12 @@ def test_eligibility_and_featured_rotation():
     assert bot.choose_repository(repositories, {0}, set(), "featured")["id"] == 1
 
 
+def test_star_cutoff_is_configurable(monkeypatch):
+    monkeypatch.setattr(bot, "MIN_STARS", 1)
+
+    assert [item["id"] for item in bot.eligible_repositories([repo(1, stars=1)])] == [1]
+
+
 def test_cooldown_and_fallback():
     history = [
         {"repo_id": 1, "posted_at": (NOW - timedelta(days=89)).isoformat()},

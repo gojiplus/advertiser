@@ -27,7 +27,7 @@ ORGS = (
     "notnews",
     "geosensing",
 )
-MIN_STARS = 5
+MIN_STARS = int(os.getenv("GITHUB_STAR_CUTOFF", "5"))
 FEATURED_COUNT = 30
 COOLDOWN_DAYS = 90
 MAX_POST_LENGTH = 300

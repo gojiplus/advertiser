@@ -1,3 +1,5 @@
+<img src="advertiser_logo.png" alt="Advertiser logo" width="40" height="40" />
+
 # Advertiser
 
 Advertiser posts public repositories from `soodoku` and the organizations listed in
@@ -6,8 +8,9 @@ reviewed blurbs or GitHub descriptions, so posting does not require an OpenAI ke
 
 ## Selection
 
-- Repositories need at least five stars and a description. Private, archived,
-  disabled, and forked repositories are excluded.
+- Repositories need a description and at least one star in the scheduled
+  workflow. The cutoff is set by `GITHUB_STAR_CUTOFF` and defaults to five for
+  local runs. Private, archived, disabled, and forked repositories are excluded.
 - Monday and Wednesday select the highest-starred available repository from the
   top 30. Friday selects the highest-starred available repository from the rest.
   If the chosen pool is empty, the other pool is used.
