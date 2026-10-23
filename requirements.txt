@@ -1,3 +1,2 @@
-atproto
-openai
-requests
+atproto==0.0.73
+requests==2.34.2

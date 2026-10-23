@@ -1,38 +1,56 @@
-<img src="advertiser_logo.png" alt="Repo Logo" width="64" height="64" />
+# Advertiser
 
-# Advertiser: Post a GenAI-Summarized GitHub Repo to Bluesky
+Advertiser posts public repositories from `soodoku` and the organizations listed in
+[`scripts/post_repo_to_bsky.py`](scripts/post_repo_to_bsky.py) to Bluesky. It uses
+reviewed blurbs or GitHub descriptions, so posting does not require an OpenAI key.
 
-This GitHub Action picks a GitHub repository (with at least five stars) from a curated list, summarizes it using OpenAI, and posts the summary to your Bluesky feed.
+## Selection
 
-Perfect for showcasing open-source gems to your followers — automatically or on demand.
+- Repositories need at least five stars and a description. Private, archived,
+  disabled, and forked repositories are excluded.
+- Monday and Wednesday select the highest-starred available repository from the
+  top 30. Friday selects the highest-starred available repository from the rest.
+  If the chosen pool is empty, the other pool is used.
+- Five prominent repositories have reviewed descriptions in
+  `data/featured_blurbs.json`. Other posts use their GitHub descriptions.
+- Repositories posted in the last 90 days are excluded. The workflow commits
+  successful posts to `data/post_history.json` and also checks recent posts on
+  the Bluesky account before choosing, which protects against a retry after a
+  history commit fails.
 
----
+The workflow runs at 9:17 a.m. Pacific time on Monday, Wednesday, and Friday.
+GitHub may delay scheduled runs. If the repository has no activity for 60 days,
+GitHub may disable its schedule; re-enable the workflow in the Actions tab.
 
-## ✨ What It Does
+## Setup and preview
 
-- 🔀 Randomly selects a repository from a curated list
-- 🧠 Uses GenAI (OpenAI) to summarize it into a crisp 1-liner
-- 🔗 Posts the summary, repo name, and link to your [Bluesky](https://bsky.app/) feed
+Set repository Actions secrets `BSKY_HANDLE` and `BSKY_PASSWORD`. Use a Bluesky
+app password for `BSKY_PASSWORD`. The workflow uses its built-in `GITHUB_TOKEN`
+to read public GitHub repositories and save post history. Its `contents: write`
+permission is limited to the posting job.
 
----
+Use **Actions → Post GitHub Repo to Bluesky → Run workflow**. The default manual
+run is a dry run: it fetches repositories and recent Bluesky posts, prints the
+candidate and final text, and publishes nothing. Select `featured` or `rotation`
+to preview a particular pool. Set `dry_run` to false for a live manual post.
 
-## 🚀 Usage
+To preview locally:
 
-### `.github/workflows/post.yml`
+```sh
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python scripts/post_repo_to_bsky.py --dry-run --handle YOUR_HANDLE
+```
 
-```yaml
-name: Post to Bluesky
+The public GitHub API can be rate limited without a token. Set `GITHUB_TOKEN`
+locally if needed. No Bluesky password is required for a dry run.
 
-on:
-  workflow_dispatch:  # Manual trigger
+## Development checks
 
-jobs:
-  run:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: appeler/post-to-bsky@v1
-        with:
-          bsky_handle: ${{ secrets.BSKY_HANDLE }}
-          bsky_password: ${{ secrets.BSKY_PASSWORD }}
-          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+```sh
+black --check scripts tests
+isort --check-only scripts tests
+flake8 scripts tests
+python -m pytest -q
+actionlint .github/workflows/post-to-bsky.yml
+```

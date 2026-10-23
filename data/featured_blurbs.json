@@ -1,0 +1,7 @@
+{
+  "appeler/ethnicolr": "Estimate population-level patterns associated with names using Census, voter-file, and Wikipedia models. These estimates do not establish anyone's identity.",
+  "outside-edge/python-espncricinfo": "Python client for ESPNcricinfo match, series, and player data. It uses Playwright to extract embedded JSON from match pages.",
+  "gojiplus/tuber": "R client for the YouTube Data API. Search videos and channels, retrieve playlists and captions, and use supported authenticated features.",
+  "themains/rdomains": "R tools for classifying domains with archived lists, APIs, and language models. Check each classification source's vintage before using it.",
+  "notnews/archive_news_cc": "Tools and provenance for a closed-caption corpus from about 2.5 million Internet Archive TV News items, 2009–2023. Data are on Harvard Dataverse."
+}

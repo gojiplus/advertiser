@@ -1,30 +1,75 @@
-name: Post Repo to Bsky
+name: Post GitHub Repo to Bluesky
 
 on:
+  push:
+    branches: [main]
+  pull_request:
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Preview without publishing
+        type: boolean
+        default: true
+      pool:
+        description: Repository pool
+        type: choice
+        options: [auto, featured, rotation]
+        default: auto
   schedule:
-    - cron: "0 16 * * *"  # Every day at 4 PM UTC
+    - cron: "17 9 * * 1,3,5"
+      timezone: America/Los_Angeles
+
+concurrency:
+  group: advertiser-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  post:
+  test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
-          python-version: '3.11'
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r requirements.txt black isort flake8 pytest
+      - run: black --check scripts tests
+      - run: isort --check-only scripts tests
+      - run: flake8 scripts tests
+      - run: python -m pytest -q
 
-      - name: Install deps
-        run: |
-          pip install -r requirements.txt
-
-      - name: Post to Bsky
+  post:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Select and post repository
         env:
           BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
           BSKY_PASSWORD: ${{ secrets.BSKY_PASSWORD }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GITHUB_USERNAME: soodoku
-          GITHUB_ORGS: appeler,recite,gojiplus,themains,outside-edge,matmulai,in-rolls,notnews,geosensing
-        run: python scripts/post_repo_to_bsky.py
+          GITHUB_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          POOL: ${{ inputs.pool || 'auto' }}
+        run: |
+          args=(--pool "$POOL")
+          if [[ "$DRY_RUN" == "true" ]]; then args+=(--dry-run); fi
+          python scripts/post_repo_to_bsky.py "${args[@]}"
+      - name: Save post history
+        run: |
+          if [[ -n "$(git status --short -- data/post_history.json)" ]]; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add data/post_history.json
+            git commit -m 'Record Bluesky post'
+            git push
+          fi
