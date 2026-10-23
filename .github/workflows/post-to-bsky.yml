@@ -16,7 +16,7 @@ on:
         options: [auto, featured, rotation]
         default: auto
   schedule:
-    - cron: "17 9 * * 1,3,5"
+    - cron: "17 9 * * 1,3"
       timezone: America/Los_Angeles
 
 concurrency:

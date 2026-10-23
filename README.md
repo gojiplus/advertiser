@@ -12,7 +12,7 @@ reviewed blurbs or GitHub descriptions, so posting does not require an OpenAI ke
   workflow. The cutoff is set by `GITHUB_STAR_CUTOFF` and defaults to five for
   local runs. Private, archived, disabled, and forked repositories are excluded.
 - Monday and Wednesday select the highest-starred available repository from the
-  top 30. Friday selects the highest-starred available repository from the rest.
+  top 30. Manual runs can choose the rotation pool, which starts below the top 30.
   If the chosen pool is empty, the other pool is used.
 - Five prominent repositories have reviewed descriptions in
   `data/featured_blurbs.json`. Other posts use their GitHub descriptions.
@@ -21,7 +21,7 @@ reviewed blurbs or GitHub descriptions, so posting does not require an OpenAI ke
   the Bluesky account before choosing, which protects against a retry after a
   history commit fails.
 
-The workflow runs at 9:17 a.m. Pacific time on Monday, Wednesday, and Friday.
+The repository workflow runs at 9:17 a.m. Pacific time on Monday and Wednesday.
 GitHub may delay scheduled runs. If the repository has no activity for 60 days,
 GitHub may disable its schedule; re-enable the workflow in the Actions tab.
 
@@ -48,6 +48,34 @@ python3 -m venv .venv
 The public GitHub API can be rate limited without a token. Set `GITHUB_TOKEN`
 locally if needed. No Bluesky password is required for a dry run.
 
+## Paper posts
+
+The separate **Post Paper to Bluesky** workflow runs Friday at 9:17 a.m.
+Pacific time. It posts from the same Bluesky account using the existing Actions
+secrets. The reviewed queue is `data/papers.json`; the public paper catalog at
+`https://gsood.com/research/catalog.json` supplies manuscript, replication,
+and data links. The queue specifies a caption, 1–4 ordered figures, SHA-256
+checksums of their source files, and alt text. The bot removes image metadata,
+keeps original aspect ratios, checks the 2 MB limit, and links labels in the
+caption with Bluesky facets. Images and link cards cannot share one post embed.
+
+Papers are posted once. The workflow commits successful posts to
+`data/paper_post_history.json` and checks recent Bluesky posts for a manuscript
+link before publishing. If the reviewed queue is exhausted, Friday's run exits
+without posting. Add another reviewed paper to the queue to continue the series.
+
+The first queued paper is *Is Cynicism Taken as Evidence of Political
+Sophistication?* Its three figures show group means, robustness estimates, and
+the response distribution. The caption links to the paper PDF and replication
+repository.
+
+Use **Actions → Post Paper to Bluesky → Run workflow** to preview (the default)
+or publish. A `paper_id` may select a specific reviewed paper. Local preview:
+
+```sh
+.venv/bin/python scripts/post_paper_to_bsky.py --dry-run --handle YOUR_HANDLE
+```
+
 ## Development checks
 
 ```sh
@@ -56,4 +84,5 @@ isort --check-only scripts tests
 flake8 scripts tests
 python -m pytest -q
 actionlint .github/workflows/post-to-bsky.yml
+actionlint .github/workflows/post-paper-to-bsky.yml
 ```

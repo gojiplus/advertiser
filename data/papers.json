@@ -1,0 +1,44 @@
+[
+  {
+    "id": "is-cynicism-taken-as-evidence-of-political-sophistication",
+    "caption": "Is cynicism read as political sophistication? Among 711 survey respondents, wording that politics attracts “bad people” scored 6.2 points lower than “good people” wording (95% CI −9.4 to −3.0).\n\nSwipe through three figures.",
+    "figures": [
+      {
+        "url": "https://raw.githubusercontent.com/soodoku/sophisticated_cynic/3ca75eb13776f2e571ac553fa92c65ad199c3333/figs/sophistication.png",
+        "sha256": "24b7f6d77c0d533aa2f4f4a861d1fb1d4bb12b0091abbf98ae0d595c23fdc240",
+        "alt": "Mean perceived sophistication on a 0–100 scale: 53.6 for the good-people tweet (370 respondents) and 47.5 for the bad-people tweet (341 respondents), with 95% intervals."
+      },
+      {
+        "url": "https://raw.githubusercontent.com/soodoku/sophisticated_cynic/3ca75eb13776f2e571ac553fa92c65ad199c3333/figs/estimates.png",
+        "sha256": "0757efc252cff8f281f3be4d8d8bd3e995fbcb7ae153e65dad314dd89061f1ed",
+        "alt": "Six estimates comparing the bad-people and good-people tweets. The full-sample, adjusted, weighted, and matched estimates are negative; the unmatched remainder has a wider interval crossing zero. Samples and targets differ."
+      },
+      {
+        "url": "https://raw.githubusercontent.com/soodoku/sophisticated_cynic/3ca75eb13776f2e571ac553fa92c65ad199c3333/figs/distribution.png",
+        "sha256": "f41d45e61273281a0a31023c4665721796db05ccdb7d0eb0615f048446699c3b",
+        "alt": "Distribution across seven sophistication ratings for the two tweets. At least somewhat sophisticated: 37.8% for good-people wording versus 24.9% for bad-people wording."
+      }
+    ]
+  },
+  {
+    "id": "principled-partisan-affect-evidence-from-two-survey-experiments",
+    "caption": "Do voters reward party members for holding leaders accountable? In two survey experiments, fair-minded opponents gained little warmth. Withdrawing support after controversy was linked to a 4.3-point drop in warmth toward one's own party (95% CI −8.9 to 0.2).",
+    "figures": [
+      {
+        "url": "https://raw.githubusercontent.com/soodoku/partisan_principled/4fba38b54c27b9bc1179977c1ebc97ab1d2b564d/figs/mturk_effects.png",
+        "sha256": "78a0ff554e870dfebaff1ddd88c8c83c4b5f12a705915d7d2d77dd7810306aed",
+        "alt": "2013 survey experiment: declining rather than sustained leader support is associated with a 4.3-point lower own-party feeling thermometer rating and a 1.2-point higher opposition rating. Both 95% intervals include zero."
+      },
+      {
+        "url": "https://raw.githubusercontent.com/soodoku/partisan_principled/4fba38b54c27b9bc1179977c1ebc97ab1d2b564d/figs/yougov_effects.png",
+        "sha256": "33846395d312155210685df5721b02f4247e8cca0ae10ee1a8fc8090cd574ef2",
+        "alt": "2018 survey experiment: articles depicting fair-minded opponents or biased allies yield small positive estimated changes in favorable traits and feeling thermometers. The four 95% intervals all include zero."
+      },
+      {
+        "url": "https://raw.githubusercontent.com/soodoku/partisan_principled/4fba38b54c27b9bc1179977c1ebc97ab1d2b564d/figs/trait_items.png",
+        "sha256": "86f67d07424fc0c9cc3f8708f62c5b8dc750a4ebc38dbcae22335590d587d7de",
+        "alt": "Item-level favorable trait estimates for biased own-party and fair-minded opposition articles, compared with control. Most 95% intervals cross zero; the less-ignorant item for fair-minded opponents is positive."
+      }
+    ]
+  }
+]

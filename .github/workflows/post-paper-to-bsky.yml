@@ -1,0 +1,74 @@
+name: Post Paper to Bluesky
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Preview without publishing
+        type: boolean
+        default: true
+      paper_id:
+        description: Catalog paper ID (blank selects next reviewed paper)
+        type: string
+        default: ""
+  schedule:
+    - cron: "17 9 * * 5"
+      timezone: America/Los_Angeles
+
+concurrency:
+  group: paper-post-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r requirements.txt black isort flake8 pytest
+      - run: black --check scripts tests
+      - run: isort --check-only scripts tests
+      - run: flake8 scripts tests
+      - run: python -m pytest -q
+
+  post:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Select and post paper
+        env:
+          BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
+          BSKY_PASSWORD: ${{ secrets.BSKY_PASSWORD }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          PAPER_ID: ${{ inputs.paper_id }}
+        run: |
+          args=()
+          if [[ "$DRY_RUN" == "true" ]]; then args+=(--dry-run); fi
+          if [[ -n "$PAPER_ID" ]]; then args+=(--paper-id "$PAPER_ID"); fi
+          python scripts/post_paper_to_bsky.py "${args[@]}"
+      - name: Save post history
+        run: |
+          if [[ -n "$(git status --short -- data/paper_post_history.json)" ]]; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add data/paper_post_history.json
+            git commit -m 'Record paper post to Bluesky'
+            git push
+          fi
