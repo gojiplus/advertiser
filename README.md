@@ -51,8 +51,9 @@ locally if needed. No Bluesky password is required for a dry run.
 
 ## Paper posts
 
-The separate **Post Paper to Bluesky** workflow runs daily at 7:00 a.m.
-Pacific time. It posts from the same Bluesky account using the existing Actions
+The separate **Post Paper to Bluesky** workflow is scheduled daily at 7:00 a.m.
+Pacific time. GitHub can delay scheduled runs; this is not a guaranteed posting
+time. It posts from the same Bluesky account using the existing Actions
 secrets. The reviewed queue is `data/papers.json`; the public paper catalog at
 `https://gsood.com/research/catalog.json` supplies manuscript, replication,
 and data links. The queue specifies a caption, 1–4 ordered figures, SHA-256
@@ -60,10 +61,16 @@ checksums of their source files, and alt text. The bot removes image metadata,
 keeps original aspect ratios, checks the 2 MB limit, and links labels in the
 caption with Bluesky facets. Images and link cards cannot share one post embed.
 
+Reviewed posts take priority. When no unposted reviewed paper remains, the bot
+selects the next unposted paper in catalog order and posts its title with
+manuscript, replication, and data links where available. These posts have no
+figures or generated summaries. The catalog is fetched on each run, so newly
+added papers enter the feed automatically. Only entries marked `paper` qualify.
+
 Papers are posted once. The workflow commits successful posts to
 `data/paper_post_history.json` and checks recent Bluesky posts for a manuscript
-link before publishing. If the reviewed queue is exhausted, the daily run exits
-without posting. Add another reviewed paper to the queue to continue the series.
+link before publishing. If every catalog paper has been posted, the daily run
+exits without posting.
 
 The first queued paper is *Is Cynicism Taken as Evidence of Political
 Sophistication?* Its three figures show group means, robustness estimates, and
@@ -71,7 +78,7 @@ the response distribution. The caption links to the paper PDF and replication
 repository.
 
 Use **Actions → Post Paper to Bluesky → Run workflow** to preview (the default)
-or publish. A `paper_id` may select a specific reviewed paper. Local preview:
+or publish. A `paper_id` may select a specific catalog paper. Local preview:
 
 ```sh
 .venv/bin/python scripts/post_paper_to_bsky.py --dry-run --handle YOUR_HANDLE

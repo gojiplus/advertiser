@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Post a reviewed paper with figures and source links to Bluesky."""
+"""Post a catalog paper, using reviewed captions and figures when available."""
 
 import argparse
 import hashlib
@@ -128,7 +128,13 @@ def load_history():
 
 def choose_paper(papers, catalog, history, feed_urls, paper_id=None):
     posted_ids = {item["paper_id"] for item in history}
-    for paper in papers:
+    reviewed_ids = {paper["id"] for paper in papers}
+    candidates = list(papers) + [
+        {"id": entry["id"], "caption": entry["title"], "figures": []}
+        for entry in catalog.values()
+        if entry["id"] not in reviewed_ids
+    ]
+    for paper in candidates:
         if paper_id and paper["id"] != paper_id:
             continue
         if paper["id"] not in catalog:
@@ -149,19 +155,19 @@ def main():
         parser.error("BSKY_HANDLE or --handle is required")
 
     papers = json.loads(PAPERS_PATH.read_text(encoding="utf-8"))
-    if args.paper_id and args.paper_id not in {paper["id"] for paper in papers}:
-        parser.error(f"Unknown paper ID: {args.paper_id}")
     history = load_history()
     now = datetime.now(timezone.utc)
     session = requests.Session()
     catalog = catalog_papers(session)
+    if args.paper_id and args.paper_id not in catalog:
+        parser.error(f"Unknown paper ID: {args.paper_id}")
     feed_urls = recent_feed_paper_urls(session, args.handle, now)
     selected = choose_paper(papers, catalog, history, feed_urls, args.paper_id)
     if selected is None:
-        print("No reviewed paper remains to post")
+        print("No unposted catalog paper remains to post")
         return
     paper, links = selected
-    if not 1 <= len(paper["figures"]) <= 4:
+    if paper in papers and not 1 <= len(paper["figures"]) <= 4:
         raise ValueError(f"Paper {paper['id']} must have 1–4 figures")
     text, facets = format_post(paper, links)
     figures = [prepare_figure(session, figure) for figure in paper["figures"]]
@@ -179,16 +185,19 @@ def main():
 
     client = Client()
     client.login(args.handle, password)
-    result = client.send_images(
-        text=text,
-        images=[content for content, _, _, _ in figures],
-        image_alts=[alt for _, alt, _, _ in figures],
-        image_aspect_ratios=[
-            models.AppBskyEmbedDefs.AspectRatio(width=width, height=height)
-            for _, _, width, height in figures
-        ],
-        facets=facets,
-    )
+    if figures:
+        result = client.send_images(
+            text=text,
+            images=[content for content, _, _, _ in figures],
+            image_alts=[alt for _, alt, _, _ in figures],
+            image_aspect_ratios=[
+                models.AppBskyEmbedDefs.AspectRatio(width=width, height=height)
+                for _, _, width, height in figures
+            ],
+            facets=facets,
+        )
+    else:
+        result = client.send_post(text=text, facets=facets)
     history.append(
         {"paper_id": paper["id"], "posted_at": now.isoformat(), "post_uri": result.uri}
     )

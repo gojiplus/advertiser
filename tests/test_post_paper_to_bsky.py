@@ -1,7 +1,10 @@
 import hashlib
 import io
 import json
+import sys
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 from PIL import Image
@@ -152,3 +155,71 @@ def test_reviewed_queue_has_valid_caption_and_figures():
         assert all(
             figure["alt"] and len(figure["sha256"]) == 64 for figure in paper["figures"]
         )
+
+
+def test_catalog_fills_exhausted_queue_and_respects_duplicate_checks():
+    papers = [{"id": "reviewed", "caption": "Reviewed caption", "figures": []}]
+    catalog = {
+        name: {
+            "id": name,
+            "title": f"Title of {name}",
+            "resources": [{"role": "manuscript", "url": f"papers/{name}.pdf"}],
+        }
+        for name in ("first", "reviewed", "last")
+    }
+    assert bot.choose_paper(papers, catalog, [], set())[0] == papers[0]
+    history = [{"paper_id": "reviewed"}]
+    paper, links = bot.choose_paper(papers, catalog, history, set())
+    assert paper == {"id": "first", "caption": "Title of first", "figures": []}
+    assert links["manuscript"].endswith("/first.pdf")
+    feed_urls = {links["manuscript"]}
+    assert bot.choose_paper(papers, catalog, history, feed_urls)[0]["id"] == "last"
+    history.append({"paper_id": "last"})
+    assert bot.choose_paper(papers, catalog, history, feed_urls) is None
+    assert bot.choose_paper(papers, catalog, [], set(), "last")[0]["id"] == "last"
+
+
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_catalog_post_and_preview(monkeypatch, tmp_path, dry_run):
+    history_path = tmp_path / "history.json"
+    history_path.write_text("[]\n")
+    papers_path = tmp_path / "papers.json"
+    papers_path.write_text("[]\n")
+    monkeypatch.setattr(bot, "HISTORY_PATH", history_path)
+    monkeypatch.setattr(bot, "PAPERS_PATH", papers_path)
+    monkeypatch.setattr(
+        bot,
+        "catalog_papers",
+        lambda session: {
+            PAPER_ID: {
+                "id": PAPER_ID,
+                "title": "A catalog paper",
+                "resources": [{"role": "manuscript", "url": PAPER_URL}],
+            }
+        },
+    )
+    monkeypatch.setattr(bot, "recent_feed_paper_urls", lambda *args: set())
+    client = Mock()
+    client.send_post.return_value = SimpleNamespace(uri="at://example/post/1")
+    factory = Mock(return_value=client)
+    monkeypatch.setitem(
+        sys.modules, "atproto", SimpleNamespace(Client=factory, models=Mock())
+    )
+    monkeypatch.setenv("BSKY_PASSWORD", "test-password")
+    argv = ["bot", "--handle", "me.bsky.social", "--paper-id", PAPER_ID]
+    if dry_run:
+        argv.append("--dry-run")
+    monkeypatch.setattr(sys, "argv", argv)
+
+    bot.main()
+
+    if dry_run:
+        factory.assert_not_called()
+        assert json.loads(history_path.read_text()) == []
+    else:
+        client.send_post.assert_called_once()
+        assert client.send_post.call_args.kwargs["text"] == "A catalog paper\n\nPaper"
+        client.send_images.assert_not_called()
+        history = json.loads(history_path.read_text())
+        assert history[0]["paper_id"] == PAPER_ID
+        assert history[0]["post_uri"] == "at://example/post/1"
