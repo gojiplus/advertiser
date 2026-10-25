@@ -11,8 +11,9 @@ reviewed blurbs or GitHub descriptions, so posting does not require an OpenAI ke
 - Repositories need a description and at least one star in the scheduled
   workflow. The cutoff is set by `GITHUB_STAR_CUTOFF` and defaults to five for
   local runs. Private, archived, disabled, and forked repositories are excluded.
-- Monday and Wednesday select the highest-starred available repository from the
-  top 30. Manual runs can choose the rotation pool, which starts below the top 30.
+- Daily runs select the highest-starred available repository from the top 30,
+  except Fridays, which use the rotation pool starting below the top 30.
+  Manual runs can also choose the rotation pool.
   If the chosen pool is empty, the other pool is used.
 - Five prominent repositories have reviewed descriptions in
   `data/featured_blurbs.json`. Other posts use their GitHub descriptions.
@@ -21,7 +22,7 @@ reviewed blurbs or GitHub descriptions, so posting does not require an OpenAI ke
   the Bluesky account before choosing, which protects against a retry after a
   history commit fails.
 
-The repository workflow runs at 9:17 a.m. Pacific time on Monday and Wednesday.
+The repository workflow runs daily at 7:00 a.m. Pacific time.
 GitHub may delay scheduled runs. If the repository has no activity for 60 days,
 GitHub may disable its schedule; re-enable the workflow in the Actions tab.
 
@@ -50,7 +51,7 @@ locally if needed. No Bluesky password is required for a dry run.
 
 ## Paper posts
 
-The separate **Post Paper to Bluesky** workflow runs Friday at 9:17 a.m.
+The separate **Post Paper to Bluesky** workflow runs daily at 7:00 a.m.
 Pacific time. It posts from the same Bluesky account using the existing Actions
 secrets. The reviewed queue is `data/papers.json`; the public paper catalog at
 `https://gsood.com/research/catalog.json` supplies manuscript, replication,
@@ -61,7 +62,7 @@ caption with Bluesky facets. Images and link cards cannot share one post embed.
 
 Papers are posted once. The workflow commits successful posts to
 `data/paper_post_history.json` and checks recent Bluesky posts for a manuscript
-link before publishing. If the reviewed queue is exhausted, Friday's run exits
+link before publishing. If the reviewed queue is exhausted, the daily run exits
 without posting. Add another reviewed paper to the queue to continue the series.
 
 The first queued paper is *Is Cynicism Taken as Evidence of Political

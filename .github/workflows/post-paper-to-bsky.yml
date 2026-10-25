@@ -15,11 +15,11 @@ on:
         type: string
         default: ""
   schedule:
-    - cron: "17 9 * * 5"
+    - cron: "0 7 * * *"
       timezone: America/Los_Angeles
 
 concurrency:
-  group: paper-post-${{ github.ref }}
+  group: advertiser-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
