@@ -2,15 +2,152 @@
 
 # Advertiser
 
-Advertiser posts public repositories from `soodoku` and the organizations listed in
-[`scripts/post_repo_to_bsky.py`](scripts/post_repo_to_bsky.py) to Bluesky. It uses
-reviewed blurbs or GitHub descriptions, so posting does not require an OpenAI key.
+Advertiser is a reusable GitHub Action for posting research papers with exhibits
+and public repositories to Bluesky. You supply configuration, reviewed copy,
+and posting history. The action selects and publishes one item, returns the
+result, and updates your history file. Your workflow owns the schedule and
+history persistence. No OpenAI key is needed.
+
+## Use in another repository
+
+Create `advertiser/config.json` in your repository:
+
+```json
+{
+  "kind": "repository",
+  "owners": ["YOUR_GITHUB_USERNAME"],
+  "min_stars": 5
+}
+```
+
+Then add a workflow (tested on Ubuntu runners):
+
+```yaml
+name: Advertise
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        type: boolean
+        default: true
+  schedule:
+    - cron: "0 7 * * *"
+      timezone: America/Los_Angeles
+concurrency:
+  group: advertiser
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: gojiplus/advertiser@main
+        id: advertise
+        with:
+          config-file: advertiser/config.json
+          history-file: advertiser/history.json
+          bsky-handle: ${{ secrets.BSKY_HANDLE }}
+          bsky-password: ${{ secrets.BSKY_PASSWORD }}
+          dry-run: ${{ inputs.dry_run || false }}
+      - name: Save history
+        if: steps.advertise.outputs.posted == 'true'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add advertiser/history.json
+          git commit -m 'Record Bluesky post'
+          git push
+```
+
+`@main` follows development; pin a reviewed commit SHA for reproducible runs.
+Use a Bluesky app password. The action itself only needs read access to public
+repositories; the example grants write access to persist history. If branch
+protection blocks pushes, persist the file through your existing PR or storage
+workflow. Restore history before invoking the action. Serialize runs for the
+same account to prevent concurrent selection of the same item.
+
+Paths supplied as inputs are relative to the caller's workspace (absolute paths
+also work). Paths *inside* configuration are relative to that configuration file.
+A missing history file starts an empty history and is created only after a
+successful post. Dependencies use the action's frozen `uv.lock` and a separate
+virtual environment under the runner's temporary directory.
+
+| Input | Meaning / default |
+| --- | --- |
+| `config-file` | Required JSON configuration |
+| `history-file` | Required JSON history path |
+| `bsky-handle` | Required account handle |
+| `bsky-password` | Required for live posts; optional for previews |
+| `github-token` | Token for public repository reads; defaults to `github.token` |
+| `dry-run` | `true` by default; must be `true` or `false` |
+| `preview-dir` | Optional dry-run output directory |
+| `paper-id` | Optional selection from the reviewed queue |
+| `repost` | `false`; explicit correction override requiring `paper-id` |
+| `pool` | Repository selection: `auto`, `featured`, or `rotation` |
+
+Outputs are `posted` (`true` or `false`), `selected-id` (paper ID or repository
+full name), and `post-uri` (AT Protocol URI, empty for previews/skips).
+Repository cooldown exhaustion skips; an exhausted paper queue fails so that
+missing editorial preparation is visible.
+
+Repository configuration accepts `owners` and `organizations` (at least one
+nonempty list), `min_stars` (default 5), `featured_count` (30), `cooldown_days`
+(90), `timezone` (`UTC`), optional `rotation_weekday` (Monday=0 through Sunday=6),
+and optional `blurbs_file` (JSON object mapping full repository names to copy).
+Without `rotation_weekday`, automatic selection always uses the featured pool.
+
+Paper configuration:
+
+```json
+{
+  "kind": "paper",
+  "catalog_url": "https://example.org/research/catalog.json",
+  "papers_file": "papers.json"
+}
+```
+
+The catalog contains an `entries` array with `kind: "paper"`, `id`, `title`,
+and `resources` (`role` and `url`; a `manuscript` is required). Resource URLs
+resolve relative to the catalog URL. The reviewed queue is a JSON array:
+
+```json
+[
+  {
+    "id": "my-paper",
+    "caption": "Explain the question, why it matters, and the key finding.",
+    "figures": [
+      {
+        "url": "https://example.org/research/paper.pdf",
+        "sha256": "REPLACE_WITH_THE_SOURCE_FILE_SHA256",
+        "page": 3,
+        "alt": "Describe the evidence shown in this graph or table."
+      }
+    ]
+  }
+]
+```
+
+Both modes optionally accept `feed_url` for an alternative Bluesky AppView's
+`app.bsky.feed.getAuthorFeed` endpoint. The default is the public Bluesky API.
+
+The root `action.yml` provides the metadata used by GitHub Marketplace. The
+listing is not published yet: publication requires a tagged release, an
+available action name, and the repository owner's acceptance of the
+[Marketplace Developer Agreement](https://docs.github.com/en/actions/how-tos/create-and-publish-actions/publish-in-github-marketplace).
+
+## This repository's daily posts
+
+The workflows in this repository consume the same action with settings in
+`data/repository-config.json` and `data/paper-config.json`. These files and the
+prepared queue are examples of caller data; the action never loads them unless
+explicitly selected by its inputs.
 
 ## Selection
 
 - Repositories need a description and at least one star in the scheduled
-  workflow. The cutoff is set by `GITHUB_STAR_CUTOFF` and defaults to five for
-  local runs. Private, archived, disabled, and forked repositories are excluded.
+  workflow, configured by `min_stars` in `data/repository-config.json`. Private, archived, disabled, and forked repositories are excluded.
 - Daily runs select the highest-starred available repository from the top 30,
   except Fridays, which use the rotation pool starting below the top 30.
   Manual runs can also choose the rotation pool.
@@ -42,7 +179,8 @@ To preview locally:
 
 ```sh
 uv sync --frozen
-uv run scripts/post_repo_to_bsky.py --dry-run --handle YOUR_HANDLE
+uv run python -m scripts.post_repo_to_bsky --dry-run --handle YOUR_HANDLE \
+  --config data/repository-config.json --history data/post_history.json
 ```
 
 The public GitHub API can be rate limited without a token. Set `GITHUB_TOKEN`
@@ -92,7 +230,8 @@ Workflow previews upload the text, link facets, alt text, and images as a
 `paper-preview` artifact. To save a preview locally:
 
 ```sh
-uv run scripts/post_paper_to_bsky.py --dry-run --handle YOUR_HANDLE \
+uv run python -m scripts.post_paper_to_bsky --dry-run --handle YOUR_HANDLE \
+  --config data/paper-config.json --history data/paper_post_history.json \
   --preview-dir preview
 ```
 
@@ -100,7 +239,8 @@ uv run scripts/post_paper_to_bsky.py --dry-run --handle YOUR_HANDLE \
 
 This automation app follows [py-canon's toolchain](https://github.com/gojiplus/py-canon/blob/main/STANDARD.md):
 `pyproject.toml`, a committed `uv.lock`, Ruff, Pyright, and strict pytest checks.
-CI tests Python 3.12 and 3.14 with frozen dependencies. The app is not a
+CI tests Python 3.12 and 3.14 with frozen dependencies, plus a composite-action
+preview with a separate consumer checkout and synthetic catalog. The app is not a
 distributable package, so it uses a local reusable CI workflow instead of
 py-canon's package workflow, which always builds a wheel. Package publishing,
 Sphinx, and library docstring checks do not apply to these operator scripts.

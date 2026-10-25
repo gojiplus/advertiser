@@ -15,11 +15,15 @@ import pymupdf
 import requests
 from PIL import Image
 
-CATALOG_URL = "https://gsood.com/research/catalog.json"
+from scripts.configuration import (
+    action_outputs,
+    config_path,
+    load_config,
+    load_history,
+    write_history,
+)
+
 FEED_URL = "https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed"
-ROOT = Path(__file__).resolve().parents[1]
-PAPERS_PATH = ROOT / "data" / "papers.json"
-HISTORY_PATH = ROOT / "data" / "paper_post_history.json"
 MAX_IMAGE_BYTES = 2_000_000
 MAX_POST_LENGTH = 300
 
@@ -30,18 +34,18 @@ def fetch_json(session, url, **kwargs):
     return response.json()
 
 
-def catalog_papers(session):
-    catalog = fetch_json(session, CATALOG_URL)
+def catalog_papers(session, catalog_url):
+    catalog = fetch_json(session, catalog_url)
     return {
         entry["id"]: entry for entry in catalog["entries"] if entry["kind"] == "paper"
     }
 
 
-def resource_links(entry):
+def resource_links(entry, catalog_url):
     links = {}
     for resource in entry["resources"]:
         if resource.get("role") in {"manuscript", "replication", "code", "data"}:
-            links[resource["role"]] = urljoin(CATALOG_URL, resource["url"])
+            links[resource["role"]] = urljoin(catalog_url, resource["url"])
     if "manuscript" not in links:
         raise ValueError(f"Paper {entry['id']} has no manuscript")
     return links
@@ -165,7 +169,7 @@ def prepare_title_abstract(session, paper, entry, manuscript_url):
     return prepare_image(source, alt)
 
 
-def recent_feed_paper_urls(session, handle, now):
+def recent_feed_paper_urls(session, handle, now, feed_url=FEED_URL):
     cutoff = now - timedelta(days=90)
     urls = set()
     cursor = None
@@ -173,7 +177,7 @@ def recent_feed_paper_urls(session, handle, now):
         params = {"actor": handle, "limit": 100, "filter": "posts_no_replies"}
         if cursor:
             params["cursor"] = cursor
-        page = fetch_json(session, FEED_URL, params=params)
+        page = fetch_json(session, feed_url, params=params)
         oldest = now
         for item in page.get("feed", []):
             if "reason" in item:
@@ -195,34 +199,29 @@ def recent_feed_paper_urls(session, handle, now):
             return urls
 
 
-def load_history():
-    history = json.loads(HISTORY_PATH.read_text(encoding="utf-8"))
-    if not isinstance(history, list):
-        raise ValueError("Paper history must be a JSON list")
-    return history
-
-
-def choose_paper(papers, catalog, history, feed_urls, paper_id=None):
+def choose_paper(papers, catalog, history, feed_urls, catalog_url, paper_id=None):
     posted_ids = {item["paper_id"] for item in history}
     for paper in papers:
         if paper_id and paper["id"] != paper_id:
             continue
         if paper["id"] not in catalog:
             raise ValueError(f"Paper missing from public catalog: {paper['id']}")
-        links = resource_links(catalog[paper["id"]])
+        links = resource_links(catalog[paper["id"]], catalog_url)
         if paper["id"] not in posted_ids and links["manuscript"] not in feed_urls:
             return paper, links
     return None
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--paper-id")
     parser.add_argument("--repost", action="store_true")
     parser.add_argument("--preview-dir", type=Path)
     parser.add_argument("--handle", default=os.getenv("BSKY_HANDLE"))
-    args = parser.parse_args()
+    parser.add_argument("--config", required=True, type=Path)
+    parser.add_argument("--history", required=True, type=Path)
+    args = parser.parse_args(argv)
     if not args.handle:
         parser.error("BSKY_HANDLE or --handle is required")
     if args.preview_dir and not args.dry_run:
@@ -230,24 +229,32 @@ def main():
     if args.repost and not args.paper_id:
         parser.error("--repost requires an explicit --paper-id")
 
-    papers = json.loads(PAPERS_PATH.read_text(encoding="utf-8"))
-    history = load_history()
+    config = load_config(args.config, "paper")
+    catalog_url = config["catalog_url"]
+    papers = json.loads(
+        config_path(args.config, config["papers_file"]).read_text(encoding="utf-8")
+    )
+    history = load_history(args.history)
     now = datetime.now(UTC)
     session = requests.Session()
-    catalog = catalog_papers(session)
+    catalog = catalog_papers(session, catalog_url)
     if args.paper_id and args.paper_id not in catalog:
         parser.error(f"Unknown paper ID: {args.paper_id}")
     if args.paper_id and args.paper_id not in {paper["id"] for paper in papers}:
         parser.error(
-            "Paper needs a reviewed blurb and exhibit selection in data/papers.json"
+            "Paper needs a reviewed blurb and exhibits in the configured queue"
         )
-    feed_urls = recent_feed_paper_urls(session, args.handle, now)
+    feed_urls = recent_feed_paper_urls(
+        session, args.handle, now, config.get("feed_url", FEED_URL)
+    )
+    action_outputs()
     preview_existing = (args.dry_run and args.paper_id) or args.repost
     selected = choose_paper(
         papers,
         catalog,
         [] if preview_existing else history,
         set() if preview_existing else feed_urls,
+        catalog_url,
         args.paper_id,
     )
     if selected is None:
@@ -258,6 +265,7 @@ def main():
             "Paper queue exhausted: prepare more reviewed blurbs and exhibits"
         )
     paper, links = selected
+    action_outputs(selected_id=paper["id"])
     if not paper["caption"].strip() or normalized_text(
         paper["caption"]
     ) == normalized_text(catalog[paper["id"]]["title"]):
@@ -293,6 +301,11 @@ def main():
             )
         return
 
+    remaining = sum(
+        choose_paper([item], catalog, history, feed_urls, catalog_url) is not None
+        for item in papers
+        if item["id"] != paper["id"]
+    )
     password = os.getenv("BSKY_PASSWORD")
     if not password:
         parser.error("BSKY_PASSWORD is required to publish")
@@ -313,11 +326,9 @@ def main():
     history.append(
         {"paper_id": paper["id"], "posted_at": now.isoformat(), "post_uri": result.uri}
     )
-    HISTORY_PATH.write_text(json.dumps(history, indent=2) + "\n", encoding="utf-8")
+    write_history(args.history, history)
+    action_outputs(selected_id=paper["id"], post_uri=result.uri, posted=True)
     print(f"Published {result.uri}")
-    remaining = sum(
-        choose_paper([item], catalog, history, feed_urls) is not None for item in papers
-    )
     print(f"Prepared papers remaining: {remaining}")
     if remaining <= 3:
         print(

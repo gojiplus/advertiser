@@ -1,0 +1,6 @@
+{
+  "kind": "paper",
+  "catalog_url": "http://127.0.0.1:8765/catalog.json",
+  "papers_file": "papers.json",
+  "feed_url": "http://127.0.0.1:8765/feed.json"
+}

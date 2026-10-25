@@ -3,6 +3,7 @@ import io
 import json
 import sys
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -14,6 +15,7 @@ from PIL.PngImagePlugin import PngInfo
 from scripts import post_paper_to_bsky as bot
 
 NOW = datetime(2026, 10, 23, 16, 0, tzinfo=UTC)
+CATALOG_URL = "https://gsood.com/research/catalog.json"
 PAPER_ID = "sample-paper"
 PAPER_URL = "https://gsood.com/research/papers/sample.pdf"
 
@@ -47,7 +49,7 @@ def test_catalog_links_and_utf8_facets():
             {"role": "data", "url": "https://github.com/example/data"},
         ],
     }
-    links = bot.resource_links(entry)
+    links = bot.resource_links(entry, CATALOG_URL)
     post, facets = bot.format_post(
         {"id": PAPER_ID, "caption": "Cynicism \N{MINUS SIGN} 6.2 points."}, links
     )
@@ -109,10 +111,17 @@ def test_selection_never_reposts_and_keeps_queue_order():
     }
     history = [{"paper_id": "first"}]
 
-    assert bot.choose_paper(papers, catalog, history, set())[0]["id"] == "second"
+    assert (
+        bot.choose_paper(papers, catalog, history, set(), CATALOG_URL)[0]["id"]
+        == "second"
+    )
     assert (
         bot.choose_paper(
-            papers, catalog, history, {"https://gsood.com/research/papers/second.pdf"}
+            papers,
+            catalog,
+            history,
+            {"https://gsood.com/research/papers/second.pdf"},
+            CATALOG_URL,
         )
         is None
     )
@@ -148,7 +157,11 @@ def test_recent_feed_links_protect_against_failed_history_commit():
 
 
 def test_reviewed_queue_has_valid_caption_and_figures():
-    papers = json.loads(bot.PAPERS_PATH.read_text(encoding="utf-8"))
+    papers = json.loads(
+        (Path(__file__).resolve().parents[1] / "data/papers.json").read_text(
+            encoding="utf-8"
+        )
+    )
 
     assert papers
     for paper in papers:
@@ -171,10 +184,10 @@ def test_unprepared_catalog_papers_cannot_bypass_editorial_queue():
         }
         for name in ("first", "reviewed", "last")
     }
-    assert bot.choose_paper(papers, catalog, [], set())[0] == papers[0]
+    assert bot.choose_paper(papers, catalog, [], set(), CATALOG_URL)[0] == papers[0]
     history = [{"paper_id": "reviewed"}]
-    assert bot.choose_paper(papers, catalog, history, set()) is None
-    assert bot.choose_paper(papers, catalog, [], set(), "last") is None
+    assert bot.choose_paper(papers, catalog, history, set(), CATALOG_URL) is None
+    assert bot.choose_paper(papers, catalog, [], set(), CATALOG_URL, "last") is None
 
 
 def sample_pdf(*, heading="Abstract", complete=True):
@@ -283,12 +296,16 @@ def test_image_post_and_preview(monkeypatch, tmp_path, dry_run, repost):
             ]
         )
     )
-    monkeypatch.setattr(bot, "HISTORY_PATH", history_path)
-    monkeypatch.setattr(bot, "PAPERS_PATH", papers_path)
+    config_path = tmp_path / "config.json"
+    config_path.write_text(
+        json.dumps(
+            {"kind": "paper", "catalog_url": CATALOG_URL, "papers_file": "papers.json"}
+        )
+    )
     monkeypatch.setattr(
         bot,
         "catalog_papers",
-        lambda session: {
+        lambda session, catalog_url: {
             PAPER_ID: {
                 "id": PAPER_ID,
                 "title": "A catalog paper",
@@ -309,7 +326,17 @@ def test_image_post_and_preview(monkeypatch, tmp_path, dry_run, repost):
         sys.modules, "atproto", SimpleNamespace(Client=factory, models=Mock())
     )
     monkeypatch.setenv("BSKY_PASSWORD", "test-password")
-    argv = ["bot", "--handle", "me.bsky.social", "--paper-id", PAPER_ID]
+    argv = [
+        "bot",
+        "--config",
+        str(config_path),
+        "--history",
+        str(history_path),
+        "--handle",
+        "me.bsky.social",
+        "--paper-id",
+        PAPER_ID,
+    ]
     if dry_run:
         argv.extend(["--dry-run", "--preview-dir", str(tmp_path / "preview")])
     if repost:
@@ -333,7 +360,20 @@ def test_image_post_and_preview(monkeypatch, tmp_path, dry_run, repost):
 
 
 def test_repost_requires_explicit_paper(monkeypatch):
-    monkeypatch.setattr(sys, "argv", ["bot", "--handle", "me.bsky.social", "--repost"])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "bot",
+            "--config",
+            "unused.json",
+            "--history",
+            "unused-history.json",
+            "--handle",
+            "me.bsky.social",
+            "--repost",
+        ],
+    )
     with pytest.raises(SystemExit) as error:
         bot.main()
     assert error.value.code == 2
@@ -347,12 +387,16 @@ def test_quality_failures_stop_before_login(monkeypatch, tmp_path, failure):
     caption = {"blank": " ", "title": "A catalog paper"}.get(failure, "A real finding.")
     papers = [{"id": PAPER_ID, "caption": caption, "figures": []}]
     papers_path.write_text(json.dumps([] if failure == "exhausted" else papers))
-    monkeypatch.setattr(bot, "HISTORY_PATH", history_path)
-    monkeypatch.setattr(bot, "PAPERS_PATH", papers_path)
+    config_path = tmp_path / "config.json"
+    config_path.write_text(
+        json.dumps(
+            {"kind": "paper", "catalog_url": CATALOG_URL, "papers_file": "papers.json"}
+        )
+    )
     monkeypatch.setattr(
         bot,
         "catalog_papers",
-        lambda session: {
+        lambda session, catalog_url: {
             PAPER_ID: {
                 "id": PAPER_ID,
                 "title": "A catalog paper",
@@ -366,7 +410,19 @@ def test_quality_failures_stop_before_login(monkeypatch, tmp_path, failure):
     )
     factory = Mock()
     monkeypatch.setitem(sys.modules, "atproto", SimpleNamespace(Client=factory))
-    monkeypatch.setattr(sys, "argv", ["bot", "--handle", "me.bsky.social"])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "bot",
+            "--config",
+            str(config_path),
+            "--history",
+            str(history_path),
+            "--handle",
+            "me.bsky.social",
+        ],
+    )
     with pytest.raises(ValueError, match=r"blurb|Bad image|queue exhausted"):
         bot.main()
     factory.assert_not_called()

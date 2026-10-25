@@ -1,0 +1,71 @@
+name: Advertiser for Bluesky
+description: Publish research papers with exhibits or public repositories using your own configuration and history.
+author: Gaurav Sood
+branding:
+  icon: send
+  color: blue
+inputs:
+  config-file:
+    description: JSON configuration path, relative to the caller workspace or absolute
+    required: true
+  history-file:
+    description: JSON history path; created after a successful post and persisted by the caller
+    required: true
+  bsky-handle:
+    description: Bluesky account handle
+    required: true
+  bsky-password:
+    description: Bluesky app password; required for live posting
+    required: false
+  github-token:
+    description: Token for reading public repositories
+    default: ${{ github.token }}
+  dry-run:
+    description: Preview without publishing or changing history
+    default: "true"
+  preview-dir:
+    description: Optional output directory for dry-run text and images
+    required: false
+  paper-id:
+    description: Optional reviewed paper ID; blank selects the next eligible paper
+    required: false
+  repost:
+    description: Intentionally publish a corrected version; requires paper-id
+    default: "false"
+  pool:
+    description: Repository pool (auto, featured, or rotation)
+    default: auto
+outputs:
+  posted:
+    description: Whether a new post was published (true or false)
+    value: ${{ steps.publish.outputs.posted }}
+  post-uri:
+    description: Published AT Protocol URI, or empty for previews and skips
+    value: ${{ steps.publish.outputs.post-uri }}
+  selected-id:
+    description: Selected paper ID or repository full name
+    value: ${{ steps.publish.outputs.selected-id }}
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@v10.3.2
+      with:
+        python-version: "3.14"
+        enable-cache: false
+    - id: publish
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      env:
+        ADVERTISER_ACTION_PATH: ${{ github.action_path }}
+        UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/advertiser-${{ github.action }}
+        ADVERTISER_CONFIG: ${{ inputs.config-file }}
+        ADVERTISER_HISTORY: ${{ inputs.history-file }}
+        ADVERTISER_PREVIEW: ${{ inputs.preview-dir }}
+        ADVERTISER_DRY_RUN: ${{ inputs.dry-run }}
+        ADVERTISER_PAPER_ID: ${{ inputs.paper-id }}
+        ADVERTISER_REPOST: ${{ inputs.repost }}
+        ADVERTISER_POOL: ${{ inputs.pool }}
+        BSKY_HANDLE: ${{ inputs.bsky-handle }}
+        BSKY_PASSWORD: ${{ inputs.bsky-password }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: uv run --project "$ADVERTISER_ACTION_PATH" --frozen --no-dev python -m scripts.run_action

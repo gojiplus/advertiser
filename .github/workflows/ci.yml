@@ -28,3 +28,41 @@ jobs:
       - run: uv run --frozen ruff format --check .
       - run: uv run --frozen pyright
       - run: uv run --frozen pytest
+
+  consumer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          path: action-source
+      - name: Prepare independent consumer
+        run: |
+          mkdir -p consumer
+          cp -R action-source/tests/fixtures/consumer consumer/data
+          python3 -m http.server 8765 --bind 127.0.0.1 --directory consumer/data > "$RUNNER_TEMP/fixture-server.log" 2>&1 &
+          for _ in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:8765/feed.json; then break; fi
+            sleep 1
+          done
+      - name: Run action from a separate checkout
+        id: preview
+        uses: ./action-source
+        with:
+          config-file: consumer/data/config.json
+          history-file: consumer/state/history.json
+          bsky-handle: consumer.example
+          preview-dir: consumer/preview
+      - name: Verify action result
+        env:
+          POSTED: ${{ steps.preview.outputs.posted }}
+          SELECTED: ${{ steps.preview.outputs.selected-id }}
+          POST_URI: ${{ steps.preview.outputs.post-uri }}
+        run: |
+          test "$POSTED" = false
+          test "$SELECTED" = consumer-paper
+          test -z "$POST_URI"
+          test ! -e consumer/state/history.json
+          test -s consumer/preview/post.json
+          test -s consumer/preview/image-1.png
+          test ! -e consumer/.venv

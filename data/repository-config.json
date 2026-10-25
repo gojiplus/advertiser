@@ -1,0 +1,11 @@
+{
+  "kind": "repository",
+  "owners": ["soodoku"],
+  "organizations": ["appeler", "recite", "gojiplus", "themains", "outside-edge", "matmulai", "in-rolls", "notnews", "geosensing"],
+  "min_stars": 1,
+  "featured_count": 30,
+  "cooldown_days": 90,
+  "timezone": "America/Los_Angeles",
+  "rotation_weekday": 4,
+  "blurbs_file": "featured_blurbs.json"
+}

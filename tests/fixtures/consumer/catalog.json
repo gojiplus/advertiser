@@ -1,0 +1,15 @@
+{
+  "entries": [
+    {
+      "kind": "paper",
+      "id": "consumer-paper",
+      "title": "Independent consumer fixture",
+      "resources": [
+        {
+          "role": "manuscript",
+          "url": "paper.pdf"
+        }
+      ]
+    }
+  ]
+}

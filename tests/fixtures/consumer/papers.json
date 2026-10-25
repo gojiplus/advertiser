@@ -1,0 +1,13 @@
+[
+  {
+    "id": "consumer-paper",
+    "caption": "A synthetic test verifies that caller configuration and exhibits are used.",
+    "figures": [
+      {
+        "url": "http://127.0.0.1:8765/exhibit.png",
+        "sha256": "6a28deaa21c5a9a3ca2925968b627231f1aafd716067f4ef7cf15c9ee89454a3",
+        "alt": "Synthetic navy rectangle used to test image transport."
+      }
+    ]
+  }
+]

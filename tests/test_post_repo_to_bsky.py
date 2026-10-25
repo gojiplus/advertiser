@@ -49,12 +49,10 @@ class Session:
 
 
 def test_fetch_repositories_follows_all_pages(monkeypatch):
-    monkeypatch.setattr(bot, "OWNERS", ("example",))
-    monkeypatch.setattr(bot, "ORGS", ())
     next_url = "https://api.github.com/users/example/repos?page=2"
     session = Session([Response([repo(1)], next_url), Response([repo(2)])])
 
-    result = bot.fetch_repositories(session, "token")
+    result = bot.fetch_repositories(session, ["example"], [], "token")
 
     assert [item["id"] for item in result] == [1, 2]
     assert session.calls[0][1]["params"]["per_page"] == 100
@@ -79,9 +77,10 @@ def test_eligibility_and_featured_rotation():
 
 
 def test_star_cutoff_is_configurable(monkeypatch):
-    monkeypatch.setattr(bot, "MIN_STARS", 1)
-
-    assert [item["id"] for item in bot.eligible_repositories([repo(1, stars=1)])] == [1]
+    assert [
+        item["id"]
+        for item in bot.eligible_repositories([repo(1, stars=1)], min_stars=1)
+    ] == [1]
 
 
 def test_cooldown_and_fallback():
@@ -181,17 +180,32 @@ def test_api_failure_stops_selection():
 def test_dry_run_does_not_publish_or_record(monkeypatch, tmp_path, capsys):
     blurbs_path = tmp_path / "blurbs.json"
     blurbs_path.write_text("{}")
-    monkeypatch.setattr(bot, "BLURBS_PATH", blurbs_path)
+    config_path = tmp_path / "config.json"
+    config_path.write_text(
+        json.dumps(
+            {"kind": "repository", "owners": ["example"], "blurbs_file": "blurbs.json"}
+        )
+    )
     monkeypatch.setattr(bot, "fetch_repositories", lambda *_: [repo(1)])
     monkeypatch.setattr(bot, "recent_feed_names", lambda *_: set())
-    monkeypatch.setattr(bot, "load_history", list)
     monkeypatch.setattr(
         bot,
         "record_post",
         lambda *_: pytest.fail("A dry run must not record a post"),
     )
     monkeypatch.setattr(
-        sys, "argv", ["post_repo_to_bsky.py", "--dry-run", "--handle", "me.bsky.social"]
+        sys,
+        "argv",
+        [
+            "post_repo_to_bsky.py",
+            "--config",
+            str(config_path),
+            "--history",
+            str(tmp_path / "history.json"),
+            "--dry-run",
+            "--handle",
+            "me.bsky.social",
+        ],
     )
 
     bot.main()
@@ -204,13 +218,27 @@ def test_live_post_records_returned_uri(monkeypatch, tmp_path):
 
     blurbs_path = tmp_path / "blurbs.json"
     blurbs_path.write_text("{}")
-    monkeypatch.setattr(bot, "BLURBS_PATH", blurbs_path)
+    config_path = tmp_path / "config.json"
+    config_path.write_text(
+        json.dumps(
+            {"kind": "repository", "owners": ["example"], "blurbs_file": "blurbs.json"}
+        )
+    )
     monkeypatch.setattr(bot, "fetch_repositories", lambda *_: [repo(1)])
     monkeypatch.setattr(bot, "recent_feed_names", lambda *_: set())
-    monkeypatch.setattr(bot, "load_history", list)
     monkeypatch.setenv("BSKY_PASSWORD", "test-password")
     monkeypatch.setattr(
-        sys, "argv", ["post_repo_to_bsky.py", "--handle", "me.bsky.social"]
+        sys,
+        "argv",
+        [
+            "post_repo_to_bsky.py",
+            "--config",
+            str(config_path),
+            "--history",
+            str(tmp_path / "history.json"),
+            "--handle",
+            "me.bsky.social",
+        ],
     )
     recorded = []
     monkeypatch.setattr(bot, "record_post", lambda *args: recorded.append(args))

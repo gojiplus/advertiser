@@ -40,24 +40,18 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           ref: ${{ github.ref }}
-      - uses: astral-sh/setup-uv@v10.3.2
-        with:
-          python-version: "3.14"
-          enable-cache: true
-      - run: uv sync --frozen --no-dev
       - name: Select and post paper
-        env:
-          BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
-          BSKY_PASSWORD: ${{ secrets.BSKY_PASSWORD }}
-          DRY_RUN: ${{ inputs.dry_run }}
-          PAPER_ID: ${{ inputs.paper_id }}
-          REPOST: ${{ inputs.repost }}
-        run: |
-          args=()
-          if [[ "$DRY_RUN" == "true" ]]; then args+=(--dry-run --preview-dir preview); fi
-          if [[ -n "$PAPER_ID" ]]; then args+=(--paper-id "$PAPER_ID"); fi
-          if [[ "$REPOST" == "true" ]]; then args+=(--repost); fi
-          uv run --frozen --no-dev python scripts/post_paper_to_bsky.py "${args[@]}"
+        id: publish
+        uses: ./
+        with:
+          config-file: data/paper-config.json
+          history-file: data/paper_post_history.json
+          bsky-handle: ${{ secrets.BSKY_HANDLE }}
+          bsky-password: ${{ secrets.BSKY_PASSWORD }}
+          dry-run: ${{ inputs.dry_run || false }}
+          paper-id: ${{ inputs.paper_id }}
+          repost: ${{ inputs.repost || false }}
+          preview-dir: ${{ inputs.dry_run && 'preview' || '' }}
       - name: Upload preview
         if: inputs.dry_run
         uses: actions/upload-artifact@v7.0.2
@@ -66,6 +60,7 @@ jobs:
           path: preview/
           if-no-files-found: error
       - name: Save post history
+        if: steps.publish.outputs.posted == 'true'
         run: |
           if [[ -n "$(git status --short -- data/paper_post_history.json)" ]]; then
             git config user.name 'github-actions[bot]'
