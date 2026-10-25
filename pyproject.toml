@@ -1,0 +1,69 @@
+[project]
+name = "advertiser"
+version = "0.1.0"
+description = "Daily Bluesky posts for research papers and public software"
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "Gaurav Sood", email = "contact@gsood.com" }]
+requires-python = ">=3.12"
+keywords = ["bluesky", "research", "automation"]
+classifiers = ["Private :: Do Not Upload"]
+dependencies = [
+    "atproto>=0.0.73",
+    "Pillow>=12.3.0",
+    "requests>=2.34.2",
+    "pymupdf>=1.26,<2",
+]
+
+[project.urls]
+Repository = "https://github.com/gojiplus/advertiser"
+Issues = "https://github.com/gojiplus/advertiser/issues"
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = ["ruff>=0.16.2", "pyright>=1.1.390", { include-group = "test" }]
+test = ["pytest>=8"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+external = ["DOC"]
+select = [
+    "E", "W", "F", "I", "B", "C4", "UP", "N", "D", "S", "SIM", "T20", "PT", "RUF",
+    "PTH", "RET", "PIE", "FURB", "PERF", "DTZ", "LOG", "G", "TC", "FLY",
+    "RSE", "SLOT", "FA", "A", "EXE", "ICN", "PGH", "PLE", "ARG", "SLF",
+]
+# D203/D213: the google convention this standard picks. W191/D206/D300:
+# ruff's own docs list these as always incompatible with `ruff format`,
+# which the standard also runs.
+ignore = ["D203", "D213", "W191", "D206", "D300"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+# Unused fixture arguments and private-member access are how tests are written.
+"tests/**" = ["S101", "D", "ARG", "SLF"]
+# Operator scripts print their results and do not expose a library API.
+"scripts/**" = ["T201", "D103"]
+
+[tool.pyright]
+include = ["scripts"]
+typeCheckingMode = "standard"
+
+[tool.pytest.ini_options]
+minversion = "8"
+testpaths = ["tests"]
+pythonpath = ["."]
+log_level = "INFO"
+xfail_strict = true
+filterwarnings = [
+    "error",
+    # SWIG import warnings crash MuPDF when raised; remove once upstream #4392 is fixed in wheels.
+    'ignore:builtin type (SwigPyPacked|SwigPyObject|swigvarlink) has no __module__ attribute:DeprecationWarning',
+]
+addopts = ["-ra", "--strict-config", "--strict-markers"]

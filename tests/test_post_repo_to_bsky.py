@@ -1,13 +1,13 @@
 import json
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
 
 from scripts import post_repo_to_bsky as bot
 
-NOW = datetime(2026, 10, 23, 16, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 23, 16, 0, tzinfo=UTC)
 
 
 def repo(number, stars=10, **overrides):
@@ -184,7 +184,7 @@ def test_dry_run_does_not_publish_or_record(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(bot, "BLURBS_PATH", blurbs_path)
     monkeypatch.setattr(bot, "fetch_repositories", lambda *_: [repo(1)])
     monkeypatch.setattr(bot, "recent_feed_names", lambda *_: set())
-    monkeypatch.setattr(bot, "load_history", lambda: [])
+    monkeypatch.setattr(bot, "load_history", list)
     monkeypatch.setattr(
         bot,
         "record_post",
@@ -200,12 +200,14 @@ def test_dry_run_does_not_publish_or_record(monkeypatch, tmp_path, capsys):
 
 
 def test_live_post_records_returned_uri(monkeypatch, tmp_path):
+    from atproto import models
+
     blurbs_path = tmp_path / "blurbs.json"
     blurbs_path.write_text("{}")
     monkeypatch.setattr(bot, "BLURBS_PATH", blurbs_path)
     monkeypatch.setattr(bot, "fetch_repositories", lambda *_: [repo(1)])
     monkeypatch.setattr(bot, "recent_feed_names", lambda *_: set())
-    monkeypatch.setattr(bot, "load_history", lambda: [])
+    monkeypatch.setattr(bot, "load_history", list)
     monkeypatch.setenv("BSKY_PASSWORD", "test-password")
     monkeypatch.setattr(
         sys, "argv", ["post_repo_to_bsky.py", "--handle", "me.bsky.social"]
@@ -219,10 +221,12 @@ def test_live_post_records_returned_uri(monkeypatch, tmp_path):
 
         def send_post(self, text, facets):
             assert "https://github.com/example/repo-1" in text
-            assert facets[0]["features"][0]["uri"] == repo(1)["html_url"]
+            assert facets[0].features[0].uri == repo(1)["html_url"]
             return SimpleNamespace(uri="at://posted")
 
-    monkeypatch.setitem(sys.modules, "atproto", SimpleNamespace(Client=FakeClient))
+    monkeypatch.setitem(
+        sys.modules, "atproto", SimpleNamespace(Client=FakeClient, models=models)
+    )
     bot.main()
 
     assert recorded[0][1:3] == (repo(1), "at://posted")

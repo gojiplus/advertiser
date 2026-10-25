@@ -40,5 +40,217 @@
         "alt": "Item-level favorable trait estimates for biased own-party and fair-minded opposition articles, compared with control. Most 95% intervals cross zero; the less-ignorant item for fair-minded opponents is positive."
       }
     ]
+  },
+  {
+    "id": "queue-shift-updating-classifiers-under-a-staffing-budget",
+    "caption": "A better routing model can overwhelm the wrong team. Queue Shift improves predictions within staffing and error budgets. In simulations, freezing queue totals is cheap when cases just reorder, but costly when demand shifts.",
+    "manuscript_sha256": "06a1b0d7591e1ed94f77cbe9b50c204c76311fd095c3165b6b1dd6099e0fcf43",
+    "figures": [
+      {
+        "url": "https://gsood.com/research/papers/queue_shift.pdf",
+        "sha256": "06a1b0d7591e1ed94f77cbe9b50c204c76311fd095c3165b6b1dd6099e0fcf43",
+        "page": 6,
+        "clip": [
+          62,
+          62,
+          551,
+          451
+        ],
+        "alt": "Queue Shift Figure 1. In simulations across four routing scenarios, accuracy gains and negative-flip rates vary with the allowed shift in queue volumes. Matching both workload and flip budgets yields smaller, fairer gains than matching workload alone. Means over 30 trained model pairs."
+      },
+      {
+        "url": "https://gsood.com/research/papers/queue_shift.pdf",
+        "sha256": "06a1b0d7591e1ed94f77cbe9b50c204c76311fd095c3165b6b1dd6099e0fcf43",
+        "page": 7,
+        "clip": [
+          62,
+          72,
+          550,
+          316
+        ],
+        "alt": "Queue Shift Table 1. Holding queue totals costs 0.3–0.8 accuracy points in stable or specialist fixed-mix scenarios, but 4.7–6.5 points across scenarios and batches where volume must move. Columns show raw update gains, costs with 95% intervals, and the percentage of the update retained."
+      },
+      {
+        "url": "https://gsood.com/research/papers/queue_shift.pdf",
+        "sha256": "06a1b0d7591e1ed94f77cbe9b50c204c76311fd095c3165b6b1dd6099e0fcf43",
+        "page": 7,
+        "clip": [
+          62,
+          470,
+          550,
+          714
+        ],
+        "alt": "Queue Shift Table 2. Historical queue prices nearly match exact assignment's accuracy for the movement they produce, but exceed the target movement budget in 50–93% of simulated batches. Budget, overshoot, frequency over budget, and value gap are reported by scenario and batch."
+      }
+    ]
+  },
+  {
+    "id": "bootstrap-consistency-regularization-for-stable-neural-network-predictions",
+    "caption": "Retraining a neural net can change individual predictions even when accuracy barely moves. Bootstrap-consistency regularization reduces that instability, with a tunable accuracy tradeoff. Gains vary by dataset; simple baselines can still win.",
+    "manuscript_sha256": "d703699830bf4ca407c2b3731f22ea524e1bcb9edd1f5ad81cbfde7e7961a643",
+    "figures": [
+      {
+        "url": "https://gsood.com/research/papers/bootconsistency.pdf",
+        "sha256": "d703699830bf4ca407c2b3731f22ea524e1bcb9edd1f5ad81cbfde7e7961a643",
+        "page": 10,
+        "clip": [
+          62,
+          62,
+          550,
+          288
+        ],
+        "alt": "BCR Figure 1. Increasing the consistency penalty changes prediction instability and predictive performance. Synthetic regression loses accuracy as stability improves; Adult Income shows smaller accuracy losses. These are different tasks with different vertical scales."
+      },
+      {
+        "url": "https://gsood.com/research/papers/bootconsistency.pdf",
+        "sha256": "d703699830bf4ca407c2b3731f22ea524e1bcb9edd1f5ad81cbfde7e7961a643",
+        "page": 9,
+        "clip": [
+          62,
+          64,
+          605,
+          271
+        ],
+        "alt": "BCR Table 1 compares accuracy or RMSE and prediction stability across four datasets and eight methods. Lower stability RMSE is better. BCR is not uniformly best: simpler methods can provide competitive or better stability depending on the dataset."
+      }
+    ]
+  },
+  {
+    "id": "calibration-where-it-counts-cost-and-data-informed-isotonic-regression",
+    "caption": "Calibrated probabilities can tie cases that should be ranked differently. In these benchmarks, breaking isotonic ties by the original score recovers lost allocation value; picking a calibrator by validation payoff adds little.",
+    "manuscript_sha256": "3a154242f00f464b4999b0f9ad4024d7bc1fc67ce2b096477f87b0330e02c2f7",
+    "figures": [
+      {
+        "url": "https://gsood.com/research/papers/calibre.pdf",
+        "sha256": "3a154242f00f464b4999b0f9ad4024d7bc1fc67ce2b096477f87b0330e02c2f7",
+        "page": 9,
+        "clip": [
+          54,
+          354,
+          570,
+          564
+        ],
+        "alt": "Calibre Table 4. At 10% and 25% allocation capacity, random tie-breaking after isotonic calibration loses expected successes relative to ranking by the original score. Breaking ties by the original score yields zero loss in every displayed row. Values are per 1,000 cases, averaged over 30 seeds."
+      }
+    ]
+  },
+  {
+    "id": "rank-preserving-calibration-for-multiclass-classification",
+    "caption": "Can you recalibrate predictions without scrambling who ranks highest? This method matches class totals while preserving each class's ranking of cases. The tradeoff: preserving ranks can move probabilities away from the true target.",
+    "manuscript_sha256": "e601a37c625ccbc77ef9978a3a9b022cce3c1768deed84f81031a7e58ae35939",
+    "figures": [
+      {
+        "url": "https://gsood.com/research/papers/multiclass-rank-calibration.pdf",
+        "sha256": "e601a37c625ccbc77ef9978a3a9b022cce3c1768deed84f81031a7e58ae35939",
+        "page": 12,
+        "clip": [
+          116,
+          120,
+          495,
+          396
+        ],
+        "alt": "Rank-preserving calibration Figure 1. In a synthetic label-shift experiment, logit adjustment is close to the true posterior but changes rankings of cases within classes. Strict rank preservation retains those rankings at a higher probability RMSE; relaxed constraints trade off the two."
+      }
+    ]
+  },
+  {
+    "id": "streaming-calibration-with-mwu-and-sgd",
+    "caption": "Survey weighting without storing the survey: streaming raking keeps just 9–55 numbers in these simulations. It approaches full-data raking with moderate targets, but struggles with extreme targets or many margins.",
+    "manuscript_sha256": "bbf41ad5026389d14a989e03763c4b21ee0dbd8ffb965880ba72cb21bee46d4a",
+    "figures": [
+      {
+        "url": "https://gsood.com/research/papers/onlinerake.pdf",
+        "sha256": "bbf41ad5026389d14a989e03763c4b21ee0dbd8ffb965880ba72cb21bee46d4a",
+        "page": 6,
+        "clip": [
+          62,
+          101,
+          550,
+          255
+        ],
+        "alt": "Streaming raking Table 1 compares weighted-mean error and effective sample size across six simulated scenarios. The streaming method approaches full-data raking with moderate targets, but has larger errors with extreme targets and many margins. Means over 50 replications."
+      }
+    ]
+  },
+  {
+    "id": "total-error",
+    "caption": "One mislabeled website can distort thousands of browsing records. Reusing predicted labels changes regression bias and uncertainty. Item-level validation helps, but concentrated label reuse can still make standard intervals overconfident.",
+    "manuscript_sha256": "e6770f92820178f43bb550afb98cece406161b4a34f2b6fa1ab7c813c02fd889",
+    "figures": [
+      {
+        "url": "https://gsood.com/research/papers/total_error.pdf",
+        "sha256": "e6770f92820178f43bb550afb98cece406161b4a34f2b6fa1ab7c813c02fd889",
+        "page": 8,
+        "clip": [
+          62,
+          72,
+          551,
+          326
+        ],
+        "alt": "Shared prediction error Table 1. Simulations with 800 records compare ordinary record-level uncertainty estimates with item-audit corrections when predicted labels enter outcomes, covariates, or both. Item audits improve coverage, but concentrated item influence can still cause undercoverage. Results use 1,000 repetitions."
+      }
+    ]
+  },
+  {
+    "id": "partial-credit-diagnosing-proxy-covariates-with-validation-swaps",
+    "caption": "Fixing prediction errors one at a time can mislead you about their combined effect on a regression. In housing and text-coded incivility data, isolated fixes misstate the full correction. Correction paths reveal how the errors interact.",
+    "manuscript_sha256": "1523352ecc732ddeace2182fde3a2bbd7b312345f40aaeac936a403dbcc9d0aa",
+    "figures": [
+      {
+        "url": "https://gsood.com/research/papers/validation_swaps.pdf",
+        "sha256": "1523352ecc732ddeace2182fde3a2bbd7b312345f40aaeac936a403dbcc9d0aa",
+        "page": 9,
+        "clip": [
+          62,
+          65,
+          550,
+          337
+        ],
+        "alt": "Validation swaps Figure 4. Mean refitted coefficients in housing and Reddit incivility data are compared with additive approximations as more proxy values are corrected. Shading is the 5th–95th percentile across correction sets, not a confidence interval. The two panels use different scales."
+      },
+      {
+        "url": "https://gsood.com/research/papers/validation_swaps.pdf",
+        "sha256": "1523352ecc732ddeace2182fde3a2bbd7b312345f40aaeac936a403dbcc9d0aa",
+        "page": 8,
+        "clip": [
+          62,
+          63,
+          550,
+          282
+        ],
+        "alt": "Validation swaps Table 2 reports proxy and reference coefficients and three approximations to the full correction in housing and Reddit data. Summing isolated changes does not reproduce the joint change. The housing coefficient change is small, making its relative discrepancy large."
+      }
+    ]
+  },
+  {
+    "id": "the-parties-in-our-heads-misperceptions-about-party-composition-and-their-consequences",
+    "caption": "We picture the other party as more stereotypical than it is. In surveys, people guessed 38% of Republicans earned over $250,000; the actual share was about 2%. Correcting these beliefs reduced perceived extremity and social distance.",
+    "manuscript_sha256": "47b944924b256c3bc0f50b244c1a72da7d244e9bcaecb218dbc2892eaa956b79",
+    "figures": [
+      {
+        "url": "https://gsood.com/research/papers/partisanComposition.pdf",
+        "sha256": "47b944924b256c3bc0f50b244c1a72da7d244e9bcaecb218dbc2892eaa956b79",
+        "page": 7,
+        "clip": [
+          62,
+          62,
+          550,
+          526
+        ],
+        "alt": "Parties in Our Heads Figure 1. Survey respondents greatly overestimate the shares of party supporters belonging to stereotypical groups, including high-income Republicans and gay, lesbian, or bisexual Democrats. Perceived shares and actual shares are compared, with 95% confidence intervals for the estimates."
+      },
+      {
+        "url": "https://gsood.com/research/papers/partisanComposition.pdf",
+        "sha256": "47b944924b256c3bc0f50b244c1a72da7d244e9bcaecb218dbc2892eaa956b79",
+        "page": 27,
+        "clip": [
+          62,
+          62,
+          550,
+          395
+        ],
+        "alt": "Parties in Our Heads Figure 5. Telling respondents the opposing party's actual composition reduces mean reported social distance relative to control. The association between earlier perceptual bias and social distance is flatter after correction. Variables are scaled from zero to one; effects are modest."
+      }
+    ]
   }
 ]

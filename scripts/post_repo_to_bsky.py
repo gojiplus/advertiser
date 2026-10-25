@@ -1,11 +1,10 @@
-#!/usr/bin/env python3
 """Select a public repository and post it to Bluesky."""
 
 import argparse
 import json
 import os
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -31,7 +30,7 @@ MIN_STARS = int(os.getenv("GITHUB_STAR_CUTOFF", "5"))
 FEATURED_COUNT = 30
 COOLDOWN_DAYS = 90
 MAX_POST_LENGTH = 300
-REPO_URL = re.compile(r"https://github\.com/([\w.-]+)/([\w.-]+)", re.I)
+REPO_URL = re.compile(r"https://github\.com/([\w.-]+)/([\w.-]+)", re.IGNORECASE)
 
 
 def get_json(session, url, **kwargs):
@@ -114,7 +113,7 @@ def recent_feed_names(session, handle, now):
             if post["author"]["handle"].lower() != handle.lower():
                 continue
             record = post["record"]
-            created = datetime.fromisoformat(record["createdAt"].replace("Z", "+00:00"))
+            created = datetime.fromisoformat(record["createdAt"])
             oldest = min(oldest, created)
             if created < cutoff:
                 continue
@@ -192,7 +191,7 @@ def main():
 
     if not args.handle:
         parser.error("BSKY_HANDLE or --handle is required")
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     weekday = now.astimezone(ZoneInfo("America/Los_Angeles")).weekday()
     pool = "rotation" if args.pool == "auto" and weekday == 4 else args.pool
     if pool == "auto":
@@ -219,11 +218,13 @@ def main():
     password = os.getenv("BSKY_PASSWORD")
     if not password:
         parser.error("BSKY_PASSWORD is required to publish")
-    from atproto import Client
+    from atproto import Client, models
 
     client = Client()
     client.login(args.handle, password)
-    result = client.send_post(text, facets=facets)
+    result = client.send_post(
+        text, facets=[models.AppBskyRichtextFacet.Main(**facet) for facet in facets]
+    )
     record_post(history, repo, result.uri, now)
     print(f"Published {result.uri}")
 

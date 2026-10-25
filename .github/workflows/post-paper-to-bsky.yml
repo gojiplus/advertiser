@@ -1,9 +1,6 @@
 name: Post Paper to Bluesky
 
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
     inputs:
       dry_run:
@@ -11,7 +8,7 @@ on:
         type: boolean
         default: true
       paper_id:
-        description: Catalog paper ID (blank selects next reviewed paper)
+        description: Catalog paper ID (blank selects next prepared paper)
         type: string
         default: ""
   schedule:
@@ -24,36 +21,26 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
     permissions:
       contents: read
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.13"
-          cache: pip
-      - run: pip install -r requirements.txt black isort flake8 pytest
-      - run: black --check scripts tests
-      - run: isort --check-only scripts tests
-      - run: flake8 scripts tests
-      - run: python -m pytest -q
+    uses: ./.github/workflows/ci.yml
 
   post:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     needs: test
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           ref: ${{ github.ref }}
-      - uses: actions/setup-python@v7
+      - uses: astral-sh/setup-uv@v10.3.2
         with:
-          python-version: "3.13"
-          cache: pip
-      - run: pip install -r requirements.txt
+          python-version: "3.14"
+          enable-cache: true
+      - run: uv sync --frozen --no-dev
       - name: Select and post paper
         env:
           BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
@@ -62,9 +49,16 @@ jobs:
           PAPER_ID: ${{ inputs.paper_id }}
         run: |
           args=()
-          if [[ "$DRY_RUN" == "true" ]]; then args+=(--dry-run); fi
+          if [[ "$DRY_RUN" == "true" ]]; then args+=(--dry-run --preview-dir preview); fi
           if [[ -n "$PAPER_ID" ]]; then args+=(--paper-id "$PAPER_ID"); fi
-          python scripts/post_paper_to_bsky.py "${args[@]}"
+          uv run --frozen --no-dev python scripts/post_paper_to_bsky.py "${args[@]}"
+      - name: Upload preview
+        if: inputs.dry_run
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: paper-preview
+          path: preview/
+          if-no-files-found: error
       - name: Save post history
         run: |
           if [[ -n "$(git status --short -- data/paper_post_history.json)" ]]; then

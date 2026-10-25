@@ -1,9 +1,6 @@
 name: Post GitHub Repo to Bluesky
 
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
     inputs:
       dry_run:
@@ -25,36 +22,26 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
     permissions:
       contents: read
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.13"
-          cache: pip
-      - run: pip install -r requirements.txt black isort flake8 pytest
-      - run: black --check scripts tests
-      - run: isort --check-only scripts tests
-      - run: flake8 scripts tests
-      - run: python -m pytest -q
+    uses: ./.github/workflows/ci.yml
 
   post:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     needs: test
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           ref: ${{ github.ref }}
-      - uses: actions/setup-python@v7
+      - uses: astral-sh/setup-uv@v10.3.2
         with:
-          python-version: "3.13"
-          cache: pip
-      - run: pip install -r requirements.txt
+          python-version: "3.14"
+          enable-cache: true
+      - run: uv sync --frozen --no-dev
       - name: Select and post repository
         env:
           BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
@@ -66,7 +53,7 @@ jobs:
         run: |
           args=(--pool "$POOL")
           if [[ "$DRY_RUN" == "true" ]]; then args+=(--dry-run); fi
-          python scripts/post_repo_to_bsky.py "${args[@]}"
+          uv run --frozen --no-dev python scripts/post_repo_to_bsky.py "${args[@]}"
       - name: Save post history
         run: |
           if [[ -n "$(git status --short -- data/post_history.json)" ]]; then

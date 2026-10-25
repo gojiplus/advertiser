@@ -2,17 +2,18 @@ import hashlib
 import io
 import json
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+import pymupdf
 import pytest
-from PIL import Image
+from PIL import Image, ImageChops
 from PIL.PngImagePlugin import PngInfo
 
 from scripts import post_paper_to_bsky as bot
 
-NOW = datetime(2026, 10, 23, 16, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 23, 16, 0, tzinfo=UTC)
 PAPER_ID = "sample-paper"
 PAPER_URL = "https://gsood.com/research/papers/sample.pdf"
 
@@ -48,7 +49,7 @@ def test_catalog_links_and_utf8_facets():
     }
     links = bot.resource_links(entry)
     post, facets = bot.format_post(
-        {"id": PAPER_ID, "caption": "Cynicism − 6.2 points."}, links
+        {"id": PAPER_ID, "caption": "Cynicism \N{MINUS SIGN} 6.2 points."}, links
     )
 
     assert links["manuscript"] == PAPER_URL
@@ -60,6 +61,7 @@ def test_catalog_links_and_utf8_facets():
             ("Replication code", "https://github.com/example/sample"),
             ("Data", "https://github.com/example/data"),
         ),
+        strict=True,
     ):
         start = facet["index"]["byteStart"]
         end = facet["index"]["byteEnd"]
@@ -150,14 +152,16 @@ def test_reviewed_queue_has_valid_caption_and_figures():
 
     assert papers
     for paper in papers:
-        assert 1 <= len(paper["figures"]) <= 4
+        assert len(paper["figures"]) <= 4
+        if not paper["figures"]:
+            assert len(paper["manuscript_sha256"]) == 64
         assert len(bot.format_post(paper, {"manuscript": PAPER_URL})[0]) <= 300
         assert all(
             figure["alt"] and len(figure["sha256"]) == 64 for figure in paper["figures"]
         )
 
 
-def test_catalog_fills_exhausted_queue_and_respects_duplicate_checks():
+def test_unprepared_catalog_papers_cannot_bypass_editorial_queue():
     papers = [{"id": "reviewed", "caption": "Reviewed caption", "figures": []}]
     catalog = {
         name: {
@@ -169,22 +173,114 @@ def test_catalog_fills_exhausted_queue_and_respects_duplicate_checks():
     }
     assert bot.choose_paper(papers, catalog, [], set())[0] == papers[0]
     history = [{"paper_id": "reviewed"}]
-    paper, links = bot.choose_paper(papers, catalog, history, set())
-    assert paper == {"id": "first", "caption": "Title of first", "figures": []}
-    assert links["manuscript"].endswith("/first.pdf")
-    feed_urls = {links["manuscript"]}
-    assert bot.choose_paper(papers, catalog, history, feed_urls)[0]["id"] == "last"
-    history.append({"paper_id": "last"})
-    assert bot.choose_paper(papers, catalog, history, feed_urls) is None
-    assert bot.choose_paper(papers, catalog, [], set(), "last")[0]["id"] == "last"
+    assert bot.choose_paper(papers, catalog, history, set()) is None
+    assert bot.choose_paper(papers, catalog, [], set(), "last") is None
+
+
+def sample_pdf(*, heading="Abstract", complete=True):
+    with pymupdf.open() as doc:
+        page = doc.new_page()
+        page.insert_text((50, 60), "A catalog paper", fontsize=18)
+        page.insert_text((50, 100), heading, fontsize=12)
+        page.insert_text(
+            (50, 130),
+            "An accurate summary explains the research question and its main finding.\n"
+            "This abstract has two sentences and includes the result's limitations.",
+            fontsize=11,
+        )
+        if complete:
+            page.insert_text((50, 220), "1 Introduction", color=(1, 0, 0))
+        return doc.tobytes()
+
+
+def test_title_abstract_screenshot_includes_title_but_excludes_introduction():
+    payload = sample_pdf()
+    paper = {"manuscript_sha256": hashlib.sha256(payload).hexdigest()}
+    content, alt, width, height = bot.prepare_title_abstract(
+        Session([Response(content=payload)]),
+        paper,
+        {"title": "A catalog paper"},
+        PAPER_URL,
+    )
+    assert alt.startswith("A catalog paper. Abstract: An accurate summary")
+    assert "limitations." in alt
+    assert "Introduction" not in alt
+    assert width > 1000
+    assert 200 < height < 400
+    with Image.open(io.BytesIO(content)) as image:
+        red, green, blue = image.split()
+        assert ImageChops.difference(red, green).getbbox() is None
+        assert ImageChops.difference(green, blue).getbbox() is None
+
+
+@pytest.mark.parametrize(
+    ("heading", "complete"), [("Summary", True), ("Abstract", False)]
+)
+def test_unrecognized_abstract_cannot_produce_a_partial_screenshot(heading, complete):
+    payload = sample_pdf(heading=heading, complete=complete)
+    paper = {"manuscript_sha256": hashlib.sha256(payload).hexdigest()}
+    with pytest.raises(ValueError, match="Cannot locate abstract"):
+        bot.prepare_title_abstract(
+            Session([Response(content=payload)]),
+            paper,
+            {"title": "A catalog paper"},
+            PAPER_URL,
+        )
+
+
+def test_abstract_requires_reviewed_manuscript_and_matching_title():
+    payload = sample_pdf()
+    for digest, title, message in [
+        ("0" * 64, "A catalog paper", "Manuscript changed"),
+        (hashlib.sha256(payload).hexdigest(), "Another paper", "does not match"),
+    ]:
+        with pytest.raises(ValueError, match=message):
+            bot.prepare_title_abstract(
+                Session([Response(content=payload)]),
+                {"manuscript_sha256": digest},
+                {"title": title},
+                PAPER_URL,
+            )
+
+
+def test_pdf_table_crop_and_invalid_page_bounds():
+    payload = sample_pdf()
+    figure = {
+        "url": PAPER_URL,
+        "sha256": hashlib.sha256(payload).hexdigest(),
+        "alt": "A table from the paper",
+        "page": 1,
+        "clip": [40, 40, 400, 160],
+    }
+    content, alt, width, height = bot.prepare_figure(
+        Session([Response(content=payload)]), figure
+    )
+    assert content.startswith(b"\x89PNG")
+    assert alt == figure["alt"]
+    assert width / height == pytest.approx(3, abs=0.02)
+    for invalid in ({"page": 0}, {"page": 2}, {"clip": [0, 0, 1000, 1000]}):
+        with pytest.raises(ValueError, match="outside"):
+            bot.prepare_figure(
+                Session([Response(content=payload)]), {**figure, **invalid}
+            )
 
 
 @pytest.mark.parametrize("dry_run", [True, False])
-def test_catalog_post_and_preview(monkeypatch, tmp_path, dry_run):
+def test_image_post_and_preview(monkeypatch, tmp_path, dry_run):
     history_path = tmp_path / "history.json"
     history_path.write_text("[]\n")
     papers_path = tmp_path / "papers.json"
-    papers_path.write_text("[]\n")
+    papers_path.write_text(
+        json.dumps(
+            [
+                {
+                    "id": PAPER_ID,
+                    "caption": "A useful finding with a concrete implication.",
+                    "figures": [],
+                }
+            ]
+        )
+    )
     monkeypatch.setattr(bot, "HISTORY_PATH", history_path)
     monkeypatch.setattr(bot, "PAPERS_PATH", papers_path)
     monkeypatch.setattr(
@@ -199,8 +295,11 @@ def test_catalog_post_and_preview(monkeypatch, tmp_path, dry_run):
         },
     )
     monkeypatch.setattr(bot, "recent_feed_paper_urls", lambda *args: set())
+    monkeypatch.setattr(
+        bot, "prepare_title_abstract", lambda *args: (b"image", "alt", 800, 500)
+    )
     client = Mock()
-    client.send_post.return_value = SimpleNamespace(uri="at://example/post/1")
+    client.send_images.return_value = SimpleNamespace(uri="at://example/post/1")
     factory = Mock(return_value=client)
     monkeypatch.setitem(
         sys.modules, "atproto", SimpleNamespace(Client=factory, models=Mock())
@@ -208,7 +307,7 @@ def test_catalog_post_and_preview(monkeypatch, tmp_path, dry_run):
     monkeypatch.setenv("BSKY_PASSWORD", "test-password")
     argv = ["bot", "--handle", "me.bsky.social", "--paper-id", PAPER_ID]
     if dry_run:
-        argv.append("--dry-run")
+        argv.extend(["--dry-run", "--preview-dir", str(tmp_path / "preview")])
     monkeypatch.setattr(sys, "argv", argv)
 
     bot.main()
@@ -216,10 +315,45 @@ def test_catalog_post_and_preview(monkeypatch, tmp_path, dry_run):
     if dry_run:
         factory.assert_not_called()
         assert json.loads(history_path.read_text()) == []
+        assert (tmp_path / "preview" / "image-1.png").read_bytes() == b"image"
     else:
-        client.send_post.assert_called_once()
-        assert client.send_post.call_args.kwargs["text"] == "A catalog paper\n\nPaper"
-        client.send_images.assert_not_called()
+        client.send_images.assert_called_once()
+        assert client.send_images.call_args.kwargs["images"] == [b"image"]
+        client.send_post.assert_not_called()
         history = json.loads(history_path.read_text())
         assert history[0]["paper_id"] == PAPER_ID
         assert history[0]["post_uri"] == "at://example/post/1"
+
+
+@pytest.mark.parametrize("failure", ["blank", "title", "image", "exhausted"])
+def test_quality_failures_stop_before_login(monkeypatch, tmp_path, failure):
+    history_path = tmp_path / "history.json"
+    history_path.write_text("[]\n")
+    papers_path = tmp_path / "papers.json"
+    caption = {"blank": " ", "title": "A catalog paper"}.get(failure, "A real finding.")
+    papers = [{"id": PAPER_ID, "caption": caption, "figures": []}]
+    papers_path.write_text(json.dumps([] if failure == "exhausted" else papers))
+    monkeypatch.setattr(bot, "HISTORY_PATH", history_path)
+    monkeypatch.setattr(bot, "PAPERS_PATH", papers_path)
+    monkeypatch.setattr(
+        bot,
+        "catalog_papers",
+        lambda session: {
+            PAPER_ID: {
+                "id": PAPER_ID,
+                "title": "A catalog paper",
+                "resources": [{"role": "manuscript", "url": PAPER_URL}],
+            }
+        },
+    )
+    monkeypatch.setattr(bot, "recent_feed_paper_urls", lambda *args: set())
+    monkeypatch.setattr(
+        bot, "prepare_title_abstract", Mock(side_effect=ValueError("Bad image"))
+    )
+    factory = Mock()
+    monkeypatch.setitem(sys.modules, "atproto", SimpleNamespace(Client=factory))
+    monkeypatch.setattr(sys, "argv", ["bot", "--handle", "me.bsky.social"])
+    with pytest.raises(ValueError, match=r"blurb|Bad image|queue exhausted"):
+        bot.main()
+    factory.assert_not_called()
+    assert json.loads(history_path.read_text()) == []
