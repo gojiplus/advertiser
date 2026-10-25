@@ -11,6 +11,10 @@ on:
         description: Catalog paper ID (blank selects next prepared paper)
         type: string
         default: ""
+      repost:
+        description: Intentionally publish a corrected version of the selected paper
+        type: boolean
+        default: false
   schedule:
     - cron: "0 7 * * *"
       timezone: America/Los_Angeles
@@ -47,10 +51,12 @@ jobs:
           BSKY_PASSWORD: ${{ secrets.BSKY_PASSWORD }}
           DRY_RUN: ${{ inputs.dry_run }}
           PAPER_ID: ${{ inputs.paper_id }}
+          REPOST: ${{ inputs.repost }}
         run: |
           args=()
           if [[ "$DRY_RUN" == "true" ]]; then args+=(--dry-run --preview-dir preview); fi
           if [[ -n "$PAPER_ID" ]]; then args+=(--paper-id "$PAPER_ID"); fi
+          if [[ "$REPOST" == "true" ]]; then args+=(--repost); fi
           uv run --frozen --no-dev python scripts/post_paper_to_bsky.py "${args[@]}"
       - name: Upload preview
         if: inputs.dry_run

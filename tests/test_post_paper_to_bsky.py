@@ -265,10 +265,12 @@ def test_pdf_table_crop_and_invalid_page_bounds():
             )
 
 
-@pytest.mark.parametrize("dry_run", [True, False])
-def test_image_post_and_preview(monkeypatch, tmp_path, dry_run):
+@pytest.mark.parametrize(
+    ("dry_run", "repost"), [(True, False), (False, False), (False, True)]
+)
+def test_image_post_and_preview(monkeypatch, tmp_path, dry_run, repost):
     history_path = tmp_path / "history.json"
-    history_path.write_text("[]\n")
+    history_path.write_text(json.dumps([{"paper_id": PAPER_ID}] if repost else []))
     papers_path = tmp_path / "papers.json"
     papers_path.write_text(
         json.dumps(
@@ -294,7 +296,9 @@ def test_image_post_and_preview(monkeypatch, tmp_path, dry_run):
             }
         },
     )
-    monkeypatch.setattr(bot, "recent_feed_paper_urls", lambda *args: set())
+    monkeypatch.setattr(
+        bot, "recent_feed_paper_urls", lambda *args: {PAPER_URL} if repost else set()
+    )
     monkeypatch.setattr(
         bot, "prepare_title_abstract", lambda *args: (b"image", "alt", 800, 500)
     )
@@ -308,6 +312,8 @@ def test_image_post_and_preview(monkeypatch, tmp_path, dry_run):
     argv = ["bot", "--handle", "me.bsky.social", "--paper-id", PAPER_ID]
     if dry_run:
         argv.extend(["--dry-run", "--preview-dir", str(tmp_path / "preview")])
+    if repost:
+        argv.append("--repost")
     monkeypatch.setattr(sys, "argv", argv)
 
     bot.main()
@@ -321,8 +327,16 @@ def test_image_post_and_preview(monkeypatch, tmp_path, dry_run):
         assert client.send_images.call_args.kwargs["images"] == [b"image"]
         client.send_post.assert_not_called()
         history = json.loads(history_path.read_text())
-        assert history[0]["paper_id"] == PAPER_ID
-        assert history[0]["post_uri"] == "at://example/post/1"
+        assert history[-1]["paper_id"] == PAPER_ID
+        assert history[-1]["post_uri"] == "at://example/post/1"
+        assert len(history) == (2 if repost else 1)
+
+
+def test_repost_requires_explicit_paper(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["bot", "--handle", "me.bsky.social", "--repost"])
+    with pytest.raises(SystemExit) as error:
+        bot.main()
+    assert error.value.code == 2
 
 
 @pytest.mark.parametrize("failure", ["blank", "title", "image", "exhausted"])

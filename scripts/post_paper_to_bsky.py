@@ -219,6 +219,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--paper-id")
+    parser.add_argument("--repost", action="store_true")
     parser.add_argument("--preview-dir", type=Path)
     parser.add_argument("--handle", default=os.getenv("BSKY_HANDLE"))
     args = parser.parse_args()
@@ -226,6 +227,8 @@ def main():
         parser.error("BSKY_HANDLE or --handle is required")
     if args.preview_dir and not args.dry_run:
         parser.error("--preview-dir requires --dry-run")
+    if args.repost and not args.paper_id:
+        parser.error("--repost requires an explicit --paper-id")
 
     papers = json.loads(PAPERS_PATH.read_text(encoding="utf-8"))
     history = load_history()
@@ -239,7 +242,7 @@ def main():
             "Paper needs a reviewed blurb and exhibit selection in data/papers.json"
         )
     feed_urls = recent_feed_paper_urls(session, args.handle, now)
-    preview_existing = args.dry_run and args.paper_id
+    preview_existing = (args.dry_run and args.paper_id) or args.repost
     selected = choose_paper(
         papers,
         catalog,

@@ -85,6 +85,9 @@ the workflow so it is visible, rather than reporting a successful empty run.
 Use **Actions → Post Paper to Bluesky → Run workflow** to preview (the default)
 or publish. A `paper_id` selects a prepared paper. Dry runs can preview an
 already-posted paper without changing history; live runs still refuse duplicates.
+To intentionally publish a corrected version, select its `paper_id` and enable
+the manual workflow's `repost` input (locally, `--repost --paper-id ID`). Scheduled
+runs never enable this override. The earlier post and its history are retained.
 Workflow previews upload the text, link facets, alt text, and images as a
 `paper-preview` artifact. To save a preview locally:
 
