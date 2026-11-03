@@ -12,7 +12,7 @@ dependencies = [
     "atproto>=0.0.73",
     "Pillow>=12.3.0",
     "requests>=2.34.2",
-    "pymupdf>=1.26,<2",
+    "pymupdf>=1.26,<3",
 ]
 
 [project.urls]
