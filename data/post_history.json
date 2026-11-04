@@ -70,5 +70,11 @@
     "full_name": "notnews/nytimes-corpus-extractor",
     "posted_at": "2026-11-03T20:45:24.299329+00:00",
     "post_uri": "at://did:plc:qu32s4qnz6t5yprqnzxb6rvj/app.bsky.feed.post/3mzgpg4wucq2u"
+  },
+  {
+    "repo_id": 977843830,
+    "full_name": "gojiplus/statqa",
+    "posted_at": "2026-11-04T21:02:13.244831+00:00",
+    "post_uri": "at://did:plc:qu32s4qnz6t5yprqnzxb6rvj/app.bsky.feed.post/3mzjat4hyvn2u"
   }
 ]
