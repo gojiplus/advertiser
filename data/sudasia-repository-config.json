@@ -1,0 +1,8 @@
+{
+  "kind": "repository",
+  "organizations": ["in-rolls"],
+  "min_stars": 1,
+  "featured_count": 30,
+  "cooldown_days": 60,
+  "timezone": "America/Los_Angeles"
+}

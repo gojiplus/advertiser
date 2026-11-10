@@ -1,0 +1,59 @@
+name: Post India Repo to sudasia
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Preview without publishing
+        type: boolean
+        default: true
+      pool:
+        description: Repository pool
+        type: choice
+        options: [auto, featured, rotation]
+        default: auto
+  schedule:
+    - cron: "0 8 * * *"
+      timezone: America/Los_Angeles
+
+concurrency:
+  group: advertiser-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci.yml
+
+  post:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.ref }}
+      - name: Select and post repository
+        id: publish
+        uses: ./
+        with:
+          config-file: data/sudasia-repository-config.json
+          history-file: data/sudasia_post_history.json
+          bsky-handle: sudasia.bsky.social
+          bsky-password: ${{ secrets.SUDASIA_BSKY_PASSWORD }}
+          dry-run: ${{ inputs.dry_run || false }}
+          pool: ${{ inputs.pool || 'auto' }}
+      - name: Save post history
+        if: steps.publish.outputs.posted == 'true'
+        run: |
+          if [[ -n "$(git status --short -- data/sudasia_post_history.json)" ]]; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add data/sudasia_post_history.json
+            git commit -m 'Record sudasia post'
+            git push
+          fi
