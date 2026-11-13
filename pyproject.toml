@@ -67,3 +67,7 @@ filterwarnings = [
     'ignore:builtin type (SwigPyPacked|SwigPyObject|swigvarlink) has no __module__ attribute:DeprecationWarning',
 ]
 addopts = ["-ra", "--strict-config", "--strict-markers"]
+
+[tool.codespell]
+builtin = "clear,rare,en-GB_to_en-US"
+skip = "*.pdf,*.png,*.jpg,*.jpeg,*.gif,*.csv,*.tsv,*.json,*.geojson,*.graphml,*.ipynb,*.html,*.svg,*.bib,*.bbl,*.lock,*.parquet,*.rda,*.rds,*.RData,*.dta,*.xlsx,*.xml,*.min.js,*.map,*.log,*.aux"
