@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Daily Bluesky posts for research papers and public software"
 readme = "README.md"
 license = "MIT"
-authors = [{ name = "Gaurav Sood", email = "contact@gsood.com" }]
+authors = [{ name = "Gaurav Sood" }]
 requires-python = ">=3.12"
 keywords = ["bluesky", "research", "automation"]
 classifiers = ["Private :: Do Not Upload"]
