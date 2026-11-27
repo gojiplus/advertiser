@@ -106,5 +106,11 @@
     "full_name": "in-rolls/electoral_rolls_ocr_google_vision",
     "posted_at": "2026-11-27T00:11:50.642645+00:00",
     "post_uri": "at://did:plc:symxk23ddhd4ol7gcqxsthlp/app.bsky.feed.post/3n3avo6pj7n2a"
+  },
+  {
+    "repo_id": 291376219,
+    "full_name": "in-rolls/electoral_rolls_parse_unsearchable",
+    "posted_at": "2026-11-27T23:51:27.417445+00:00",
+    "post_uri": "at://did:plc:symxk23ddhd4ol7gcqxsthlp/app.bsky.feed.post/3n3deynrhwn2o"
   }
 ]
